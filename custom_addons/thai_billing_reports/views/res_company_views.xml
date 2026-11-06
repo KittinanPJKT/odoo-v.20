@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_inherit_thai_billing" model="ir.ui.view">
+        <field name="name">res.company.form.inherit.thai.billing</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <!-- เพิ่มช่อง Fax ใต้ Phone ฝั่งขวา -->
+            <xpath expr="//field[@name='phone']" position="after">
+                <field name="fax" string="Fax" placeholder="e.g. 0-21634531" class="o_force_ltr"/>
+            </xpath>
+
+            <!-- แท็บข้อมูลภาษาอังกฤษชื่อ English Information -->
+            <xpath expr="//notebook" position="inside">
+                <page string="English Information" name="english_info">
+                    <group>
+                        <field name="name_en" placeholder="e.g. Entronica Co., Ltd."/>
+                        <label for="street_en" string="Address (EN)"/>
+                        <div class="o_address_format">
+                            <field name="street_en" placeholder="Street..." class="o_address_street"/>
+                            <field name="street2_en" placeholder="Street 2..." class="o_address_street"/>
+                            <field name="city_en" placeholder="City..." class="o_address_city"/>
+                            <field name="zip_en" placeholder="ZIP" class="o_address_zip"/>
+                        </div>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

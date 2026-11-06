@@ -1,0 +1,182 @@
+// Entronica invoice. Heights in mm must stay in sync with the constants at the
+// top of models/account_move.py, which paginates with them.
+
+@font-face {
+    font-family: 'Sarabun';
+    font-weight: normal;
+    src: url('/custom_invoice_report/static/fonts/Sarabun-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Sarabun';
+    font-weight: bold;
+    src: url('/custom_invoice_report/static/fonts/Sarabun-Bold.ttf') format('truetype');
+}
+
+$ent-border: 0.3mm solid #000;
+$ent-radius: 3mm;
+
+.ent-invoice {
+    font-family: 'Sarabun', sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.25;
+    color: #000;
+
+    table { border-collapse: collapse; width: 100%; margin: 0; }
+    // Reset the report bootstrap table borders; every border below is explicit.
+    tr, td, th, tbody, thead { padding: 0; vertical-align: top; border: 0 none; background: none; }
+    p { margin: 0; }
+
+    .ent-page {
+        position: relative;
+        width: 100%;    // the body .container already takes its own side padding
+        height: 275mm;
+        overflow: hidden;
+    }
+    .ent-page-break { page-break-after: always; }
+
+    // ---- company header -------------------------------------------------
+    .ent-company {
+        height: 27mm;
+        font-weight: bold;
+        font-size: 8pt;
+        table-layout: fixed;
+        td { vertical-align: top; }
+        .ent-logo { width: 36mm; padding-top: 1mm; }
+        .ent-logo img { width: 34mm; }
+        .ent-company-name { font-size: 12pt; margin-bottom: 1mm; }
+        .ent-company-tax { font-size: 9pt; margin-top: 1mm; line-height: 1.15; }
+        .ent-company-th { width: 68mm; padding-top: 1mm; }
+        .ent-company-en { padding-top: 1mm; white-space: nowrap; }
+        .ent-company-en .ent-company-name { font-size: 13pt; }
+    }
+
+    // ---- title ----------------------------------------------------------
+    .ent-title {
+        position: relative;
+        height: 13mm;
+        text-align: center;
+        font-weight: bold;
+        .ent-title-en { font-size: 14pt; line-height: 1.15; }
+        .ent-title-th { font-size: 13pt; line-height: 1.2; }
+        .ent-pager {
+            position: absolute;
+            right: 0;
+            bottom: 1mm;
+            font-size: 9pt;
+            font-weight: normal;
+        }
+    }
+
+    // ---- customer / document boxes -------------------------------------
+    .ent-parties {
+        height: 26mm;
+        > table > tbody > tr > td { vertical-align: top; }
+        .ent-gap { width: 3mm; }
+    }
+    .ent-box {
+        height: 24mm;
+        border: $ent-border;
+        border-radius: $ent-radius;
+        padding: 1.5mm 2.5mm;
+        overflow: hidden;
+        td { padding: 0 0 0.3mm 0; line-height: 1.25; }
+        .ent-label { white-space: nowrap; padding-right: 1.5mm; }
+    }
+    .ent-box-customer { width: 108mm; }
+
+    // ---- items table ----------------------------------------------------
+    // Column widths (shared by header, items and totals): 7 | 44 | 10 | 19 | 20 %
+    // (vertical lines at 7 / 51 / 61 / 80 %). Fixed layout keeps them identical.
+    .ent-thead, .ent-items table, .ent-totals { table-layout: fixed; }
+    .ent-thead {
+        height: 9mm;
+        border: $ent-border;
+        th {
+            border-left: $ent-border;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 9.5pt;
+            line-height: 1.1;
+            height: 9mm;
+            &:first-child { border-left: none; }
+        }
+    }
+    .ent-items {
+        position: relative;
+        border-left: $ent-border;
+        border-right: $ent-border;
+        border-bottom: $ent-border;
+        overflow: hidden;
+        .ent-vline {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-left: $ent-border;
+        }
+        td {
+            padding: 0.6mm 1.5mm;
+            line-height: 5mm;
+        }
+        .ent-row-line_section td.ent-desc { font-weight: bold; }
+    }
+    .ent-c-no { width: 7%; text-align: center; }
+    .ent-c-desc { width: 44%; }
+    .ent-c-qty { width: 10%; text-align: center; }
+    .ent-c-price { width: 19%; text-align: right; }
+    .ent-c-amount { width: 20%; text-align: right; }
+    .ent-desc { white-space: pre-line; word-wrap: break-word; }
+
+    // ---- last page: totals, amount in words, signatures ------------------
+    .ent-totals {
+        height: 20mm;
+        td { height: 6.5mm; vertical-align: middle; }
+        .ent-note { font-size: 9pt; vertical-align: bottom; padding-left: 1mm; line-height: 1.3; white-space: nowrap; overflow: hidden; }
+        .ent-tlabel { text-align: right; padding-right: 2mm; white-space: nowrap; }
+        .ent-rate { border: $ent-border; border-top: none; text-align: center; }
+        .ent-tamount {
+            border-left: $ent-border;
+            border-right: $ent-border;
+            border-bottom: $ent-border;
+            text-align: right;
+            padding-right: 1.5mm;
+        }
+        .ent-grand { border-bottom: 0.9mm double #000; font-weight: bold; }
+    }
+    .ent-words {
+        margin-top: 2mm;
+        width: 117mm;
+        height: 7mm;
+        line-height: 6.4mm;
+        border: $ent-border;
+        border-radius: 1.5mm;
+        text-align: center;
+        font-weight: bold;
+    }
+    .ent-signs {
+        margin-top: 4mm;
+        .ent-gap { width: 4mm; }
+    }
+    .ent-sign {
+        position: relative;
+        height: 31mm;
+        border: $ent-border;
+        border-radius: 5mm;
+        .ent-sign-body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 3mm;
+            text-align: center;
+        }
+        .ent-sign-line { letter-spacing: 0.4mm; color: #555; margin-bottom: 1mm; }
+    }
+
+    // ---- other pages ----------------------------------------------------
+    .ent-continued {
+        height: 8mm;
+        line-height: 8mm;
+        text-align: right;
+        font-style: italic;
+        font-size: 9.5pt;
+    }
+}

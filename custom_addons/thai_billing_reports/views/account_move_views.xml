@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_inherit_thai_billing" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.thai.billing</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- แสดง Reference / PO ในคอลัมน์ซ้ายของ Header ใต้ Customer สำหรับ Customer Invoice -->
+            <xpath expr="//group[@id='header_left_group']" position="inside">
+                <field name="ref" string="Reference / PO" placeholder="e.g. 3000044025" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+            </xpath>
+
+            <!-- เพิ่ม Project Name และ Period ในส่วนหัวเอกสารฝั่งขวา -->
+            <xpath expr="//group[@id='header_right_group']" position="inside">
+                <field name="project_name" placeholder="e.g. Professional Service" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+                <field name="period" placeholder="e.g. May26" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+            </xpath>
+
+            <!-- แท็บสำหรับข้อมูลวางบิลและการรับชำระเงินเช็คแบบไทย -->
+            <xpath expr="//notebook" position="inside">
+                <page id="thai_billing_tab" string="Thai Billing &amp; Payment" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')">
+                    <group>
+                        <group string="Billing Info / ข้อมูลการวางบิล">
+                            <field name="project_name"/>
+                            <field name="period"/>
+                        </group>
+                        <group string="Receipt &amp; Cheque / การรับชำระเงินและเช็ค">
+                            <field name="payment_method_type" widget="radio"/>
+                            <field name="cheque_no" invisible="payment_method_type != 'cheque'"/>
+                            <field name="cheque_date" invisible="payment_method_type != 'cheque'"/>
+                            <field name="bank_branch" invisible="payment_method_type != 'cheque'"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
