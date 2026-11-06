@@ -21,10 +21,8 @@
                 <page id="thai_billing_tab" string="Thai Billing &amp; Payment" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')">
                     <group>
                         <group string="Billing Info / ข้อมูลการวางบิล">
-                            <field name="ref" string="Reference / PO"/>
                             <field name="project_name"/>
                             <field name="period"/>
-                            <field name="amount_total_words_th" readonly="1"/>
                         </group>
                         <group string="Receipt &amp; Cheque / การรับชำระเงินและเช็ค">
                             <field name="payment_method_type" widget="radio"/>

@@ -9,8 +9,6 @@ Thai Billing Reports & Fields
 Adds required custom fields and helper logic for Thai accounting documents:
 - Project Name, Period, Customer PO
 - Payment Method, Cheque Number, Cheque Date, Bank & Branch
-- Thai Baht Text conversion on invoices
-- Company and Customer branch code and branch name (สำนักงานใหญ่ / สาขา)
 - Company English name and address
     """,
     'author': 'Antigravity & Team',
@@ -18,7 +16,6 @@ Adds required custom fields and helper logic for Thai accounting documents:
     'depends': ['account', 'base'],
     'data': [
         'views/account_move_views.xml',
-        'views/res_partner_views.xml',
         'views/res_company_views.xml',
     ],
     'installable': True,

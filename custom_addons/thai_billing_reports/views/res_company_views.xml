@@ -5,11 +5,6 @@
         <field name="model">res.company</field>
         <field name="inherit_id" ref="base.view_company_form"/>
         <field name="arch" type="xml">
-            <!-- เพิ่มช่อง Branch ใต้ Tax ID ฝั่งซ้าย -->
-            <xpath expr="//div[@name='identifiers']" position="after">
-                <field name="branch_name" string="Branch" placeholder="e.g. สำนักงานใหญ่, สาขาย่อย"/>
-            </xpath>
-
             <!-- เพิ่มช่อง Fax ใต้ Phone ฝั่งขวา -->
             <xpath expr="//field[@name='phone']" position="after">
                 <field name="fax" string="Fax" placeholder="e.g. 0-21634531" class="o_force_ltr"/>
