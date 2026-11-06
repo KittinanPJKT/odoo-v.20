@@ -139,3 +139,10 @@ test("escape does nothing when there is no action to go back to", async () => {
     await animationFrame();
     expect(".o_home_menu").toHaveCount(1);
 });
+
+test.tags("desktop");
+test("apps are draggable for reordering", async () => {
+    await mountHomeMenu();
+    expect(queryAllTexts(".o_home_menu_label")).toEqual(["Sales", "Inventory", "Purchase"]);
+    expect(".o_home_menu_app[draggable='true']").toHaveCount(3);
+});

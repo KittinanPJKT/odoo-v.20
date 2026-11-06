@@ -1,11 +1,32 @@
-$o-home-menu-background: #1b1b1e;
-$o-home-menu-dot-color: rgba($o-white, .07);
-$o-home-menu-tile-background: #2c2e35;
-$o-home-menu-tile-border-color: #3e3f47;
-$o-home-menu-text-color: rgba($o-white, .92);
+// = Odoo 20.0 Theme Variables
+// ============================================================================
+$o-odoo-aubergine: #714B67;
+$o-odoo-violet: #71639e;
+$o-odoo-teal: #017e84;
+$o-odoo-teal-light: #00a09d;
+$o-odoo-bg-base: #141118;
+$o-odoo-tile-bg: rgba(255, 255, 255, 0.06);
+$o-odoo-tile-border: rgba(255, 255, 255, 0.12);
+$o-odoo-tile-hover-bg: rgba(255, 255, 255, 0.14);
+$o-odoo-text-main: rgba(255, 255, 255, 0.95);
+$o-odoo-text-muted: rgba(255, 255, 255, 0.65);
+
+$o-home-menu-background: $o-odoo-bg-base;
+$o-home-menu-dot-color: rgba(255, 255, 255, 0.08);
 $o-home-menu-column-width: 146px;
-$o-home-menu-tile-size: 72px;
+$o-home-menu-tile-size: 74px;
 $o-home-menu-zindex: 20;
+
+@keyframes o-home-menu-drop-pulse {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba($o-odoo-teal, 0.45);
+        border-color: $o-odoo-teal;
+    }
+    50% {
+        box-shadow: 0 0 24px rgba($o-odoo-teal-light, 0.75);
+        border-color: $o-odoo-teal-light;
+    }
+}
 
 // = The webclient while the home menu is displayed
 // ============================================================================
@@ -36,9 +57,11 @@ body.o_home_menu_background {
     background: transparent;
     color: $o-navbar-entry-color;
     font-size: $o-navbar-brand-font-size;
+    transition: color 0.2s ease, transform 0.2s ease;
 
     &:hover {
-        color: $o-navbar-entry-color--hover;
+        color: $o-odoo-teal;
+        transform: scale(1.05);
     }
 }
 
@@ -49,9 +72,13 @@ body.o_home_menu_background {
     inset: 0;
     z-index: $o-home-menu-zindex;
     background-color: $o-home-menu-background;
-    background-image: radial-gradient($o-home-menu-dot-color 1px, transparent 1px);
-    background-size: 14px 14px;
-    color: $o-home-menu-text-color;
+    background-image:
+        radial-gradient(ellipse at 50% 12%, rgba($o-odoo-aubergine, 0.38) 0%, rgba(20, 17, 24, 0.88) 60%, $o-home-menu-background 100%),
+        radial-gradient($o-home-menu-dot-color 1.2px, transparent 1.2px);
+    background-size: 100% 100%, 18px 18px;
+    background-position: center top, 0 0;
+    color: $o-odoo-text-main;
+    user-select: none;
 }
 
 .o_home_menu_scroll {
@@ -85,11 +112,24 @@ body.o_home_menu_background {
     width: auto;
     height: auto;
     margin-bottom: map-get($spacers, 4);
-    border: $border-width solid $o-home-menu-tile-border-color;
+    border: $border-width solid rgba($o-odoo-aubergine, 0.55);
     border-radius: $border-radius-lg;
     padding: map-get($spacers, 2) map-get($spacers, 3);
-    background: $o-home-menu-tile-background;
+    background: rgba(36, 29, 41, 0.85);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
     opacity: 1;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus-within {
+        border-color: $o-odoo-teal;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba($o-odoo-teal, 0.28);
+    }
+
+    .oi[data-icon="search"] {
+        color: $o-odoo-teal;
+        font-size: 1.15rem;
+    }
 }
 
 .o_home_menu_search_input {
@@ -101,11 +141,11 @@ body.o_home_menu_background {
     font-size: $font-size-lg;
 
     &::placeholder {
-        color: rgba($o-white, .5);
+        color: rgba($o-white, 0.5);
     }
 }
 
-// = Apps
+// = Apps Grid
 // ----------------------------------------------------------------------------
 .o_home_menu_grid {
     display: grid;
@@ -128,10 +168,16 @@ body.o_home_menu_background {
     align-items: center;
     min-width: 0;
     border-radius: $border-radius-lg;
-    padding: map-get($spacers, 1);
+    padding: map-get($spacers, 2) map-get($spacers, 1);
     color: inherit;
     text-align: center;
     text-decoration: none;
+    cursor: grab;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+
+    &:active {
+        cursor: grabbing;
+    }
 
     &:hover,
     &:focus-visible,
@@ -139,13 +185,49 @@ body.o_home_menu_background {
         color: $o-white;
 
         .o_home_menu_tile {
-            border-color: rgba($o-white, .5);
-            background: lighten($o-home-menu-tile-background, 5%);
+            border-color: rgba($o-odoo-teal, 0.85);
+            background: $o-odoo-tile-hover-bg;
+            box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px rgba($o-odoo-teal, 0.35);
+            transform: translateY(-4px) scale(1.03);
+        }
+
+        .o_home_menu_label {
+            color: $o-white;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
         }
     }
 
     &.o_home_menu_item_focused {
-        outline: 2px solid rgba($o-white, .35);
+        outline: none;
+
+        .o_home_menu_tile {
+            outline: 2px solid $o-odoo-teal;
+            outline-offset: 2px;
+        }
+    }
+
+    // Dragging state
+    &.o_home_menu_app_dragging {
+        opacity: 0.32;
+        transform: scale(0.92);
+        cursor: grabbing;
+
+        .o_home_menu_tile {
+            border-style: dashed;
+            border-color: rgba($o-white, 0.4);
+            box-shadow: none;
+        }
+    }
+
+    // Drop target state
+    &.o_home_menu_app_dragover {
+        transform: scale(1.08);
+
+        .o_home_menu_tile {
+            border: 2px dashed $o-odoo-teal;
+            background: rgba($o-odoo-teal, 0.22);
+            animation: o-home-menu-drop-pulse 1.2s infinite ease-in-out;
+        }
     }
 }
 
@@ -155,15 +237,20 @@ body.o_home_menu_background {
     justify-content: center;
     width: $o-home-menu-tile-size;
     height: $o-home-menu-tile-size;
-    border: $border-width solid $o-home-menu-tile-border-color;
-    border-radius: $border-radius-lg;
-    background: $o-home-menu-tile-background;
+    border: $border-width solid $o-odoo-tile-border;
+    border-radius: 18px;
+    background: $o-odoo-tile-bg;
+    backdrop-filter: blur(8px);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 .o_home_menu_icon {
-    width: 62%;
-    height: 62%;
+    width: 65%;
+    height: 65%;
     object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+    transition: transform 0.2s ease;
 }
 
 .o_home_menu_label {
@@ -172,6 +259,11 @@ body.o_home_menu_background {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.86rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: $o-odoo-text-main;
+    transition: color 0.2s ease;
 }
 
 // = Menu items found by the search
@@ -179,29 +271,34 @@ body.o_home_menu_background {
 .o_home_menu_results {
     display: flex;
     flex-direction: column;
+    gap: map-get($spacers, 1);
     margin-top: map-get($spacers, 4);
 }
 
 .o_home_menu_result {
-    border-radius: $border-radius;
+    border-radius: $border-radius-lg;
     padding: map-get($spacers, 2) map-get($spacers, 3);
     color: inherit;
     text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 
     &:hover,
     &:focus-visible,
     &.o_home_menu_item_focused {
-        background: $o-home-menu-tile-background;
+        background: linear-gradient(90deg, rgba($o-odoo-teal, 0.32) 0%, rgba($o-odoo-aubergine, 0.22) 100%);
+        border-left: 3px solid $o-odoo-teal;
         color: $o-white;
+        transform: translateX(4px);
     }
 }
 
 .o_home_menu_result_parents {
-    color: rgba($o-white, .55);
+    color: $o-odoo-text-muted;
+    font-size: 0.85rem;
 }
 
 .o_home_menu_empty {
     padding: map-get($spacers, 5) 0;
-    color: rgba($o-white, .55);
+    color: $o-odoo-text-muted;
     text-align: center;
 }
