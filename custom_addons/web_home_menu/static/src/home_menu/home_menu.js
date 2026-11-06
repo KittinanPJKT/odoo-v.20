@@ -1,6 +1,8 @@
 import { Component, computed, signal, useEffect, useListener, usePlugin } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { OfflinePlugin } from "@web/core/offline/offline_plugin";
 import { registry } from "@web/core/registry";
+import { user } from "@web/core/user";
 import { useAutofocus, useService } from "@web/core/utils/hooks";
 import { fuzzyLookup } from "@web/core/utils/search";
 import { computeAppsAndMenuItems } from "@web/webclient/menus/menu_helpers";
@@ -31,6 +33,33 @@ export class HomeMenu extends Component {
     /** Index of the keyboard selection in the apps followed by the menu items. */
     focusedIndex = signal(null);
 
+    /** Drag and drop order state */
+    draggedAppId = signal(null);
+    dragOverAppId = signal(null);
+    customOrder = signal([]);
+
+    getStorageKey() {
+        const uid = user.userId || "default";
+        return `odoo_home_menu_order_${uid}`;
+    }
+
+    getStoredOrder() {
+        try {
+            const raw = browser.localStorage.getItem(this.getStorageKey());
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    saveOrder(order) {
+        try {
+            browser.localStorage.setItem(this.getStorageKey(), JSON.stringify(order));
+        } catch (e) {
+            console.error("Failed to save app order", e);
+        }
+    }
+
     menus = computed(() => {
         const { apps, menuItems } = computeAppsAndMenuItems(
             this.menuService.getMenuAsTree("root")
@@ -38,6 +67,20 @@ export class HomeMenu extends Component {
         for (const app of apps) {
             app.iconSrc = app.webIconData && getIconSrc(app.webIconData);
         }
+
+        const order = this.customOrder();
+        if (order && order.length) {
+            const orderMap = new Map();
+            order.forEach((key, index) => orderMap.set(String(key), index));
+            apps.sort((a, b) => {
+                const aKey = String(a.xmlid || a.id);
+                const bKey = String(b.xmlid || b.id);
+                const aIdx = orderMap.has(aKey) ? orderMap.get(aKey) : 9999;
+                const bIdx = orderMap.has(bKey) ? orderMap.get(bKey) : 9999;
+                return aIdx - bIdx;
+            });
+        }
+
         return { apps, menuItems };
     });
 
@@ -61,6 +104,9 @@ export class HomeMenu extends Component {
         this.menuService = useService("menu");
         this.ui = useService("ui");
         this.offlinePlugin = usePlugin(OfflinePlugin);
+        this.customOrder.set(this.getStoredOrder());
+        this.justDragged = false;
+
         useAutofocus({ ref: this.input });
         useListener(window, "keydown", this.onWindowKeydown.bind(this), { capture: true });
         useEffect(() => {
@@ -83,8 +129,83 @@ export class HomeMenu extends Component {
         );
     }
 
+    isAppDragging(app) {
+        return this.draggedAppId() === String(app.xmlid || app.id);
+    }
+
+    isAppDragOver(app) {
+        return this.dragOverAppId() === String(app.xmlid || app.id);
+    }
+
     selectItem(item) {
+        if (this.justDragged) {
+            return;
+        }
         this.menuService.selectMenu(item);
+    }
+
+    onDragStart(ev, app) {
+        if (this.query().trim()) {
+            ev.preventDefault();
+            return;
+        }
+        const id = String(app.xmlid || app.id);
+        this.draggedAppId.set(id);
+        ev.dataTransfer.effectAllowed = "move";
+        ev.dataTransfer.setData("text/plain", id);
+    }
+
+    onDragOver(ev, app) {
+        if (this.query().trim() || !this.draggedAppId()) {
+            return;
+        }
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        const id = String(app.xmlid || app.id);
+        if (this.dragOverAppId() !== id) {
+            this.dragOverAppId.set(id);
+        }
+    }
+
+    onDragLeave(ev, app) {
+        const id = String(app.xmlid || app.id);
+        if (this.dragOverAppId() === id) {
+            this.dragOverAppId.set(null);
+        }
+    }
+
+    onDrop(ev, targetApp) {
+        ev.preventDefault();
+        const draggedId = this.draggedAppId();
+        const targetId = String(targetApp.xmlid || targetApp.id);
+        this.draggedAppId.set(null);
+        this.dragOverAppId.set(null);
+
+        if (!draggedId || draggedId === targetId) {
+            return;
+        }
+
+        const currentApps = [...this.menus().apps];
+        const fromIdx = currentApps.findIndex((a) => String(a.xmlid || a.id) === draggedId);
+        const toIdx = currentApps.findIndex((a) => String(a.xmlid || a.id) === targetId);
+
+        if (fromIdx !== -1 && toIdx !== -1) {
+            const [moved] = currentApps.splice(fromIdx, 1);
+            currentApps.splice(toIdx, 0, moved);
+            const newOrder = currentApps.map((a) => String(a.xmlid || a.id));
+            this.saveOrder(newOrder);
+            this.customOrder.set(newOrder);
+
+            this.justDragged = true;
+            setTimeout(() => {
+                this.justDragged = false;
+            }, 200);
+        }
+    }
+
+    onDragEnd() {
+        this.draggedAppId.set(null);
+        this.dragOverAppId.set(null);
     }
 
     getGridColumnCount() {

@@ -36,9 +36,17 @@
                             t-att-class="{
                                 o_home_menu_item_focused: this.focusedIndex() === app_index,
                                 o_disabled_offline: this.isDisabledOffline(app),
+                                o_home_menu_app_dragging: this.isAppDragging(app),
+                                o_home_menu_app_dragover: this.isAppDragOver(app),
                             }"
+                            t-att-draggable="!this.query().trim() ? 'true' : 'false'"
                             t-att-href="app.href"
                             t-att-data-menu-xmlid="app.xmlid"
+                            t-on-dragstart="(ev) => this.onDragStart(ev, app)"
+                            t-on-dragover="(ev) => this.onDragOver(ev, app)"
+                            t-on-dragleave="(ev) => this.onDragLeave(ev, app)"
+                            t-on-drop="(ev) => this.onDrop(ev, app)"
+                            t-on-dragend="this.onDragEnd"
                             t-on-click.prevent="() => this.selectItem(app)"
                         >
                             <span class="o_home_menu_tile">
