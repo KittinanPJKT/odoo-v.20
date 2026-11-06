@@ -10,4 +10,26 @@
         <field name="binding_model_id" ref="account.model_account_move"/>
         <field name="binding_type">report</field>
     </record>
+
+    <record id="action_report_invoice_copy" model="ir.actions.report">
+        <field name="name">Invoice Copy (Entronica)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_invoice_report.report_invoice_copy</field>
+        <field name="print_report_name">'Invoice Copy - %s' % (object.name or '').replace('/', '-')</field>
+        <field name="paperformat_id" ref="paperformat_entronica_a4"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_invoice_original_copy" model="ir.actions.report">
+        <field name="name">Original + Copy Invoice (Entronica)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_invoice_report.report_invoice_original_copy</field>
+        <field name="print_report_name">'Original + Copy Invoice - %s' % (object.name or '').replace('/', '-')</field>
+        <field name="paperformat_id" ref="paperformat_entronica_a4"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+    </record>
 </odoo>
