@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-inherit="web.NavBar.AppsMenu" t-inherit-mode="extension">
+        <xpath expr="//a[hasclass('o_menu_toggle')]" position="attributes">
+            <attribute name="t-if">!this.homeMenu.isOpen() or this.homeMenu.canClose()</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('o_navbar_apps_menu')]/Dropdown" position="replace">
+            <button
+                t-if="!this.homeMenu.isOpen() or this.homeMenu.canClose()"
+                class="o_home_menu_toggle"
+                data-hotkey="h"
+                title="Home Menu"
+                data-available-offline=""
+                t-on-click="() => this.homeMenu.toggle()"
+            >
+                <i class="oi" data-icon="apps"/>
+            </button>
+        </xpath>
+    </t>
+
+</templates>

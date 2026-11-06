@@ -1,0 +1,207 @@
+$o-home-menu-background: #1b1b1e;
+$o-home-menu-dot-color: rgba($o-white, .07);
+$o-home-menu-tile-background: #2c2e35;
+$o-home-menu-tile-border-color: #3e3f47;
+$o-home-menu-text-color: rgba($o-white, .92);
+$o-home-menu-column-width: 146px;
+$o-home-menu-tile-size: 72px;
+$o-home-menu-zindex: 20;
+
+// = The webclient while the home menu is displayed
+// ============================================================================
+body.o_home_menu_background {
+    .o_action_manager {
+        visibility: hidden;
+    }
+
+    .o_navbar {
+        position: relative;
+        z-index: $o-home-menu-zindex + 1;
+    }
+
+    .o_main_navbar {
+        background: transparent;
+    }
+
+    .o_menu_brand,
+    .o_menu_sections,
+    .o_navbar_breadcrumbs {
+        visibility: hidden;
+    }
+}
+
+.o_home_menu_toggle {
+    border: 0;
+    padding: 0 $o-horizontal-padding;
+    background: transparent;
+    color: $o-navbar-entry-color;
+    font-size: $o-navbar-brand-font-size;
+
+    &:hover {
+        color: $o-navbar-entry-color--hover;
+    }
+}
+
+// = Home menu
+// ============================================================================
+.o_home_menu {
+    position: fixed;
+    inset: 0;
+    z-index: $o-home-menu-zindex;
+    background-color: $o-home-menu-background;
+    background-image: radial-gradient($o-home-menu-dot-color 1px, transparent 1px);
+    background-size: 14px 14px;
+    color: $o-home-menu-text-color;
+}
+
+.o_home_menu_scroll {
+    position: absolute;
+    inset: $o-navbar-height 0 0;
+    overflow-y: auto;
+}
+
+.o_home_menu_content {
+    max-width: $o-home-menu-column-width * 6;
+    margin: 0 auto;
+    padding: map-get($spacers, 4) map-get($spacers, 3);
+}
+
+// = Search
+// ----------------------------------------------------------------------------
+.o_home_menu_search {
+    // Kept in the DOM to receive the first key strokes while it looks absent.
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.o_home_menu_search_active {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: map-get($spacers, 2);
+    width: auto;
+    height: auto;
+    margin-bottom: map-get($spacers, 4);
+    border: $border-width solid $o-home-menu-tile-border-color;
+    border-radius: $border-radius-lg;
+    padding: map-get($spacers, 2) map-get($spacers, 3);
+    background: $o-home-menu-tile-background;
+    opacity: 1;
+}
+
+.o_home_menu_search_input {
+    flex-grow: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font-size: $font-size-lg;
+
+    &::placeholder {
+        color: rgba($o-white, .5);
+    }
+}
+
+// = Apps
+// ----------------------------------------------------------------------------
+.o_home_menu_grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    row-gap: map-get($spacers, 3);
+
+    @include media-breakpoint-up(sm) {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    @include media-breakpoint-up(md) {
+        grid-template-columns: repeat(6, 1fr);
+        row-gap: map-get($spacers, 4);
+    }
+}
+
+.o_home_menu_app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    border-radius: $border-radius-lg;
+    padding: map-get($spacers, 1);
+    color: inherit;
+    text-align: center;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible,
+    &.o_home_menu_item_focused {
+        color: $o-white;
+
+        .o_home_menu_tile {
+            border-color: rgba($o-white, .5);
+            background: lighten($o-home-menu-tile-background, 5%);
+        }
+    }
+
+    &.o_home_menu_item_focused {
+        outline: 2px solid rgba($o-white, .35);
+    }
+}
+
+.o_home_menu_tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: $o-home-menu-tile-size;
+    height: $o-home-menu-tile-size;
+    border: $border-width solid $o-home-menu-tile-border-color;
+    border-radius: $border-radius-lg;
+    background: $o-home-menu-tile-background;
+}
+
+.o_home_menu_icon {
+    width: 62%;
+    height: 62%;
+    object-fit: contain;
+}
+
+.o_home_menu_label {
+    max-width: 100%;
+    margin-top: map-get($spacers, 2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// = Menu items found by the search
+// ----------------------------------------------------------------------------
+.o_home_menu_results {
+    display: flex;
+    flex-direction: column;
+    margin-top: map-get($spacers, 4);
+}
+
+.o_home_menu_result {
+    border-radius: $border-radius;
+    padding: map-get($spacers, 2) map-get($spacers, 3);
+    color: inherit;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible,
+    &.o_home_menu_item_focused {
+        background: $o-home-menu-tile-background;
+        color: $o-white;
+    }
+}
+
+.o_home_menu_result_parents {
+    color: rgba($o-white, .55);
+}
+
+.o_home_menu_empty {
+    padding: map-get($spacers, 5) 0;
+    color: rgba($o-white, .55);
+    text-align: center;
+}
