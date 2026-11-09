@@ -1,20 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        One invoice = one .article. Pages are cut by account.move._ent_report_pages():
-        every page repeats the company header, title and customer boxes; only the
-        last page carries the totals and the two signature boxes, the others end
-        with "continued on next page".
+        One invoice = one .article, holding one full set of pages per document type
+        listed in `doc_types` (keys of ENT_DOCUMENT_TITLES in models/account_move.py),
+        e.g. ['invoice_original', 'invoice_copy'] prints the original then the copy.
+        Each set has its own page numbering and its own totals/signature page.
 
-        Variants (copy, receipt...) call ent_invoice_document with other titles.
+        Pages are cut by account.move._ent_report_pages(): every page repeats the
+        company header, title and customer boxes; only the last page of a set carries
+        the totals and the two signature boxes, the others end with "continued".
     -->
     <template id="ent_invoice_document">
         <t t-set="partner" t-value="o.partner_id"/>
         <t t-set="commercial" t-value="o.partner_id.commercial_partner_id"/>
         <t t-set="pages" t-value="o._ent_report_pages()"/>
         <div class="article ent-invoice" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id">
+          <t t-foreach="o._ent_document_titles(doc_types)" t-as="doc">
+            <t t-set="title_en" t-value="doc['title_en']"/>
+            <t t-set="title_th" t-value="doc['title_th']"/>
             <t t-foreach="pages" t-as="page">
-                <div t-attf-class="ent-page #{'' if page['is_last'] else 'ent-page-break'}">
+                <div t-attf-class="ent-page #{'' if page['is_last'] and doc_last else 'ent-page-break'}">
 
                     <!-- Company header (fixed text for now, see README) -->
                     <table class="ent-company">
@@ -131,22 +136,29 @@
 
                     <!-- Last page: totals, amount in words and signatures -->
                     <t t-if="page['is_last']">
+                        <!-- note | label | VAT rate | amount (= the 20% AMOUNT column above) -->
                         <table class="ent-totals">
+                            <colgroup>
+                                <col style="width: 48%;"/>
+                                <col style="width: 26%;"/>
+                                <col style="width: 6%;"/>
+                                <col style="width: 20%;"/>
+                            </colgroup>
                             <tr>
-                                <td style="width: 52%;"/>
-                                <td class="ent-tlabel" style="width: 28%;">Total / รวมเป็นเงิน</td>
-                                <td class="ent-tamount" colspan="2" t-out="o._ent_amount(o.amount_untaxed)"/>
+                                <td/>
+                                <td class="ent-tlabel" colspan="2">Total / รวมเป็นเงิน</td>
+                                <td class="ent-tamount" t-out="o._ent_amount(o.amount_untaxed)"/>
                             </tr>
                             <tr>
                                 <td class="ent-note">Payment to be made by cheque payable to "Entronica Co., Ltd."</td>
                                 <td class="ent-tlabel">VAT Amount / ภาษีมูลค่าเพิ่ม</td>
-                                <td class="ent-rate" style="width: 6%;" t-out="o._ent_vat_rate()"/>
-                                <td class="ent-tamount" style="width: 14%;" t-out="o._ent_amount(o.amount_tax)"/>
+                                <td class="ent-rate" t-out="o._ent_vat_rate()"/>
+                                <td class="ent-tamount" t-out="o._ent_amount(o.amount_tax)"/>
                             </tr>
                             <tr>
                                 <td class="ent-note" style="vertical-align: top;">กรุณาสั่งจ่ายเช็คขีดคร่อมในนาม "บริษัท เอนโทรนิก้า จำกัด"</td>
-                                <td class="ent-tlabel">Grand Total / รวมเป็นเงินทั้งสิ้น</td>
-                                <td class="ent-tamount ent-grand" colspan="2" t-out="o._ent_amount(o.amount_total)"/>
+                                <td class="ent-tlabel" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น</td>
+                                <td class="ent-tamount ent-grand" t-out="o._ent_amount(o.amount_total)"/>
                             </tr>
                         </table>
                         <div class="ent-words" t-out="o._ent_baht_text()"/>
@@ -179,14 +191,33 @@
                     </div>
                 </div>
             </t>
+          </t>
         </div>
     </template>
 
+    <!-- One report template per Print menu entry: they only differ by doc_types. -->
     <template id="report_invoice_original">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-set="title_en" t-value="'ORIGINAL INVOICE'"/>
-                <t t-set="title_th" t-value="'ต้นฉบับใบแจ้งหนี้ / ใบวางบิล'"/>
+                <t t-set="doc_types" t-value="['invoice_original']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_invoice_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['invoice_copy']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_invoice_original_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['invoice_original', 'invoice_copy']"/>
                 <t t-call="custom_invoice_report.ent_invoice_document"/>
             </t>
         </t>
