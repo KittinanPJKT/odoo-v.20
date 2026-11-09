@@ -42,12 +42,18 @@ $ent-radius: 3mm;
         table-layout: fixed;
         td { vertical-align: top; }
         .ent-logo { width: 36mm; padding-top: 1mm; }
-        .ent-logo img { width: 34mm; }
+        // Fixed box (LOGO_BOX_* in account_move.py) so that any logo leaves the tax text in place
+        .ent-logo-box { width: 34mm; height: 13mm; overflow: hidden; }
+        .ent-logo-box img { display: block; max-width: 34mm; max-height: 13mm; }
         .ent-company-name { font-size: 12pt; margin-bottom: 1mm; }
         .ent-company-tax { font-size: 9pt; margin-top: 1mm; line-height: 1.15; }
         .ent-company-th { width: 68mm; padding-top: 1mm; }
-        .ent-company-en { padding-top: 1mm; white-space: nowrap; }
+        .ent-company-en { padding-top: 1mm; }
         .ent-company-en .ent-company-name { font-size: 13pt; }
+        .ent-company-th .ent-company-name.ent-long { font-size: 10pt; }
+        .ent-company-en .ent-company-name.ent-long { font-size: 11pt; }
+        // The page blocks are fixed-height: too much text is cut here, it never moves the page
+        .ent-company-clip { height: 26mm; overflow: hidden; word-wrap: break-word; }
     }
 
     // ---- title ----------------------------------------------------------
@@ -130,7 +136,7 @@ $ent-radius: 3mm;
     .ent-totals {
         height: 20mm;
         td { height: 6.5mm; vertical-align: middle; }
-        .ent-note { font-size: 8.5pt; vertical-align: bottom; padding-left: 1mm; line-height: 1.3; white-space: nowrap; overflow: hidden; }
+        .ent-note { font-size: 8.5pt; vertical-align: bottom; padding: 0 2mm 3mm 1mm; line-height: 1.3; word-wrap: break-word; }
         .ent-tlabel { text-align: right; padding-right: 2mm; white-space: nowrap; }
         .ent-rate { border: $ent-border; text-align: center; vertical-align: middle; font-size: 9.5pt; }
         .ent-tamount {

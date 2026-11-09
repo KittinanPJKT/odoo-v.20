@@ -14,6 +14,7 @@
         <t t-set="partner" t-value="o.partner_id"/>
         <t t-set="commercial" t-value="o.partner_id.commercial_partner_id"/>
         <t t-set="pages" t-value="o._ent_report_pages()"/>
+        <t t-set="company_logo" t-value="o._ent_company_logo()"/>
         <div class="article ent-invoice" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id">
           <t t-foreach="o._ent_document_titles(doc_types)" t-as="doc">
             <t t-set="title_en" t-value="doc['title_en']"/>
@@ -21,28 +22,39 @@
             <t t-foreach="pages" t-as="page">
                 <div t-attf-class="ent-page #{'' if page['is_last'] and doc_last else 'ent-page-break'}">
 
-                    <!-- Company header (fixed text for now, see README) -->
+                    <!-- Company header: data of the company that owns the invoice -->
+                    <t t-set="company" t-value="o.company_id"/>
                     <table class="ent-company">
                         <tr>
                             <td class="ent-logo">
-                                <img src="/custom_invoice_report/static/img/entronica_logo.png" alt="Entronica"/>
+                                <div class="ent-logo-box">
+                                    <img t-if="company_logo" t-att-src="company_logo['src']" t-att-style="company_logo['style']" t-att-alt="company.name"/>
+                                </div>
                                 <div class="ent-company-tax">
                                     เลขประจำตัวผู้เสียภาษี<br/>
-                                    0 1055 4100 521 2<br/>
-                                    สำนักงานใหญ่
+                                    <t t-out="o._ent_tax_id(company.vat)"/><br/>
+                                    <t t-out="o._ent_branch(company.partner_id)"/>
                                 </div>
                             </td>
                             <td class="ent-company-th">
-                                <div class="ent-company-name">บริษัท เอนโทรนิก้า จำกัด</div>
-                                <div>408/68 อาคารพหลโยธินเพลส ชั้น 16 ถนนพหลโยธิน</div>
-                                <div>แขวงสามเสนใน เขตพญาไท กรุงเทพมหานคร 10400</div>
-                                <div>โทร : 0-21634531  แฟ็กซ์ : 0-21634531</div>
+                                <div class="ent-company-clip">
+                                    <div t-att-class="o._ent_company_name_class(company.name, 'th')" t-out="company.name"/>
+                                    <t t-foreach="o._ent_company_address_th()" t-as="addr_line">
+                                        <div t-out="addr_line"/>
+                                    </t>
+                                    <t t-set="contact" t-value="o._ent_company_contact('โทร', 'แฟ็กซ์')"/>
+                                    <div t-if="contact" t-out="contact"/>
+                                </div>
                             </td>
                             <td class="ent-company-en">
-                                <div class="ent-company-name">Entronica Co., Ltd.</div>
-                                <div>408/68 Phaholyothin Building, 16th Phaholyothin Rd.,</div>
-                                <div>Khwang Sam Sen Nai, Phayathai, Bangkok 10400</div>
-                                <div>Tel : 0-21634531  Fax : 0-21634531</div>
+                                <div class="ent-company-clip">
+                                    <div t-if="company.name_en" t-att-class="o._ent_company_name_class(company.name_en, 'en')" t-out="company.name_en"/>
+                                    <t t-foreach="o._ent_company_address_en()" t-as="addr_line">
+                                        <div t-out="addr_line"/>
+                                    </t>
+                                    <t t-set="contact" t-value="o._ent_company_contact('Tel', 'Fax')"/>
+                                    <div t-if="contact" t-out="contact"/>
+                                </div>
                             </td>
                         </tr>
                     </table>
@@ -145,18 +157,19 @@
                                 <col style="width: 20%;"/>
                             </colgroup>
                             <tr>
-                                <td/>
+                                <td class="ent-note" rowspan="3">
+                                    <div>Payment to be made by cheque payable to "<t t-out="company.name_en or company.name"/>"</div>
+                                    <div>กรุณาสั่งจ่ายเช็คขีดคร่อมในนาม "<t t-out="company.name"/>"</div>
+                                </td>
                                 <td class="ent-tlabel" colspan="2">Total / รวมเป็นเงิน</td>
                                 <td class="ent-tamount" t-out="o._ent_amount(o.amount_untaxed)"/>
                             </tr>
                             <tr>
-                                <td class="ent-note">Payment to be made by cheque payable to "Entronica Co., Ltd."</td>
                                 <td class="ent-tlabel">VAT Amount / ภาษีมูลค่าเพิ่ม</td>
                                 <td class="ent-rate" t-out="o._ent_vat_rate()"/>
                                 <td class="ent-tamount" t-out="o._ent_amount(o.amount_tax)"/>
                             </tr>
                             <tr>
-                                <td class="ent-note" style="vertical-align: top;">กรุณาสั่งจ่ายเช็คขีดคร่อมในนาม "บริษัท เอนโทรนิก้า จำกัด"</td>
                                 <td class="ent-tlabel" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น</td>
                                 <td class="ent-tamount ent-grand" t-out="o._ent_amount(o.amount_total)"/>
                             </tr>

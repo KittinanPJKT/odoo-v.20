@@ -2,6 +2,7 @@ import math
 import unicodedata
 
 from odoo import models
+from odoo.tools.image import binary_to_image, image_apply_opt, image_data_uri
 
 # Page geometry, in mm. These must match invoice_report.scss: the template draws
 # every page as a fixed-height block, so pagination is decided here, not by
@@ -14,6 +15,10 @@ NEXT_BOTTOM_HEIGHT = 8.0     # "continued on next page" strip
 ROW_PADDING = 1.2            # vertical padding of one item row
 LINE_HEIGHT = 5.0            # height of one text line in an item row
 DESC_CHARS_PER_LINE = 44     # conservative width of the description column
+NAME_ONE_LINE_CHARS = {'th': 32, 'en': 36}  # company name length that fits one header line
+LOGO_BOX_WIDTH = 34.0        # logo area in the header, see .ent-logo-box
+LOGO_BOX_HEIGHT = 13.0
+LOGO_MAX_PIXELS = (402, 154)  # logo box at 300 dpi, keeps the PDF light
 
 ITEMS_HEIGHT_LAST = PAGE_BODY_HEIGHT - TOP_HEIGHT - LAST_BOTTOM_HEIGHT
 ITEMS_HEIGHT_NEXT = PAGE_BODY_HEIGHT - TOP_HEIGHT - NEXT_BOTTOM_HEIGHT
@@ -111,11 +116,12 @@ class AccountMove(models.Model):
                 for key in doc_types]
 
     def _ent_tax_id(self, vat):
-        """0105553003015 -> '0 1055 5300 301 5' (Thai 13-digit tax ID grouping)."""
+        """0105553003015 -> '0 1055 5300 301 5' (Thai 13-digit tax ID grouping).
+        A value typed with dashes, or that is not 13 digits, is printed as typed."""
         digits = ''.join(c for c in (vat or '') if c.isdigit())
-        if len(digits) != 13:
+        if len(digits) != 13 or '-' in vat:
             return vat or ''
-        return f'{digits[0]} {digits[1:5]} {digits[5:10]} {digits[10:12]} {digits[12]}'
+        return f'{digits[0]} {digits[1:5]} {digits[5:9]} {digits[9:12]} {digits[12]}'
 
     def _ent_branch(self, partner):
         partner = partner.commercial_partner_id
@@ -130,6 +136,50 @@ class AccountMove(models.Model):
         line1 = ' '.join(filter(None, [partner.street, partner.street2]))
         line2 = ', '.join(filter(None, [partner.city, partner.state_id.name, partner.zip]))
         return [line for line in (line1, line2) if line]
+
+    def _ent_company_logo(self):
+        """Company logo scaled up or down to fill the fixed logo box, keeping its
+        ratio, as {'src', 'style'}. Empty when the company has no logo of its own."""
+        company = self.company_id
+        if company.uses_default_logo:
+            return {}
+        source = company.logo.content
+        if source[:1] == b'<':
+            # SVG has no pixel size to read: the CSS limits of the box apply
+            return {'src': image_data_uri(source), 'style': ''}
+        image = binary_to_image(source)
+        ratio = min(LOGO_BOX_WIDTH / image.width, LOGO_BOX_HEIGHT / image.height)
+        width, height = image.width * ratio, image.height * ratio
+        image.thumbnail(LOGO_MAX_PIXELS)
+        return {
+            'src': image_data_uri(image_apply_opt(image.convert('RGBA'), 'PNG', optimize=True)),
+            'style': f'width: {width:.2f}mm; height: {height:.2f}mm; '
+                     f'margin-top: {(LOGO_BOX_HEIGHT - height) / 2:.2f}mm;',
+        }
+
+    def _ent_company_name_class(self, name, lang):
+        """A long company name uses a smaller font, so that it wraps on two lines."""
+        long_name = _visible_length(name or '') > NAME_ONE_LINE_CHARS[lang]
+        return 'ent-company-name ent-long' if long_name else 'ent-company-name'
+
+    def _ent_company_address_th(self):
+        company = self.company_id
+        line2 = ' '.join(filter(None, [company.street2, company.city, company.state_id.name, company.zip]))
+        return [line for line in (company.street, line2) if line]
+
+    def _ent_company_address_en(self):
+        company = self.company_id
+        line2 = ' '.join(filter(None, [company.street2_en, company.city_en, company.zip_en]))
+        return [line for line in (company.street_en, line2) if line]
+
+    def _ent_company_contact(self, phone_label, fax_label):
+        company = self.company_id
+        parts = []
+        if company.phone:
+            parts.append(f'{phone_label} : {company.phone}')
+        if company.fax:
+            parts.append(f'{fax_label} : {company.fax}')
+        return '  '.join(parts)
 
     def _ent_vat_rate(self):
         rates = self.invoice_line_ids.tax_ids.filtered(

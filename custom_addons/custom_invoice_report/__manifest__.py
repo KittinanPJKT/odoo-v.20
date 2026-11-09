@@ -3,7 +3,7 @@
     'version': '1.0',
     'category': 'Accounting/Accounting',
     'summary': 'Custom Thai/English invoice (ใบแจ้งหนี้ / ใบวางบิล) PDF layout',
-    'depends': ['account', 'l10n_th'],
+    'depends': ['account', 'l10n_th', 'thai_billing_reports'],
     'data': [
         'reports/paperformat.xml',
         'reports/invoice_template.xml',
