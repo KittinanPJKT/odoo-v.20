@@ -1,0 +1,84 @@
+name: odoo-prod
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16
+    container_name: db-prod
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256mb
+    mem_limit: ${DB_MEM_LIMIT:-2g}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/prod.env}
+    volumes:
+      - pg_data_prod:/var/lib/postgresql/data
+    networks:
+      - prod_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo:
+    image: odoo-etnc:${ODOO_IMAGE_TAG:-20.0}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: odoo-prod
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: ${ODOO_MEM_LIMIT:-6g}
+    cpus: ${ODOO_CPU_LIMIT:-2.5}
+    env_file:
+      - ./env/prod.env
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-odoo}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/prod.env}
+    volumes:
+      - odoo_data_prod:/var/lib/odoo
+      - ./config/odoo.prod.conf:/etc/odoo/odoo.conf:ro
+      - ${CUSTOM_ADDONS_PATH:-../custom_addons}:/opt/odoo/custom_addons:ro
+    networks:
+      - prod_internal
+      - odoo_proxy_net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pg_data_prod:
+    name: pg_data_prod
+  odoo_data_prod:
+    name: odoo_data_prod
+
+networks:
+  prod_internal:
+    name: odoo_prod_internal
+    internal: true
+  odoo_proxy_net:
+    name: odoo_proxy_net
+    external: true
+

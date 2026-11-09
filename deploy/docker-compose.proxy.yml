@@ -1,0 +1,45 @@
+name: odoo-proxy
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: odoo-caddy
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    env_file:
+      - ./env/proxy.env
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - odoo_proxy_net
+    healthcheck:
+      test: ["CMD", "caddy", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  caddy_data:
+    name: odoo_caddy_data
+  caddy_config:
+    name: odoo_caddy_config
+
+networks:
+  odoo_proxy_net:
+    name: odoo_proxy_net
+    external: true
+

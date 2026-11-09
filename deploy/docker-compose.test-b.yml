@@ -1,0 +1,97 @@
+name: odoo-test-b
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16
+    container_name: db-test-b
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256mb
+    mem_limit: ${DB_MEM_LIMIT:-1g}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/test-b.env}
+    volumes:
+      - pg_data_test_b:/var/lib/postgresql/data
+    networks:
+      - test_b_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit-test-b
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:${MAILPIT_LOCAL_PORT:-8026}:8025"
+    networks:
+      - test_b_internal
+
+  odoo:
+    image: odoo-etnc:${ODOO_IMAGE_TAG:-20.0}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: odoo-test-b
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: ${ODOO_MEM_LIMIT:-3g}
+    cpus: ${ODOO_CPU_LIMIT:-1.5}
+    env_file:
+      - ./env/test-b.env
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-odoo}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/test-b.env}
+    volumes:
+      - odoo_data_test_b:/var/lib/odoo
+      - ./config/odoo.test-b.conf:/etc/odoo/odoo.conf:ro
+      - ${CUSTOM_ADDONS_PATH:-../custom_addons}:/opt/odoo/custom_addons:ro
+    networks:
+      - test_b_internal
+      - odoo_proxy_net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pg_data_test_b:
+    name: pg_data_test_b
+  odoo_data_test_b:
+    name: odoo_data_test_b
+
+networks:
+  test_b_internal:
+    name: odoo_test_b_internal
+    internal: true
+  odoo_proxy_net:
+    name: odoo_proxy_net
+    external: true
+
