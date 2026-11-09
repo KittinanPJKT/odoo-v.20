@@ -23,6 +23,15 @@ THAI_PLACES = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 
 EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
              'August', 'September', 'October', 'November', 'December']
 
+# Document types the layout can print, as (English title, Thai title). A report
+# template passes a list of these keys in `doc_types`; several keys print one
+# full set of pages per key, in that order (e.g. original then copy).
+# Tax invoice / receipt variants will be added here.
+ENT_DOCUMENT_TITLES = {
+    'invoice_original': ('ORIGINAL INVOICE', 'ต้นฉบับใบแจ้งหนี้ / ใบวางบิล'),
+    'invoice_copy': ('INVOICE COPY', 'สำเนาใบแจ้งหนี้ / ใบวางบิล'),
+}
+
 
 def _thai_number(number):
     """Read a non-negative integer in Thai (no unit)."""
@@ -96,6 +105,10 @@ class AccountMove(models.Model):
 
     def _ent_baht_text(self):
         return baht_text(self.amount_total)
+
+    def _ent_document_titles(self, doc_types):
+        return [{'title_en': ENT_DOCUMENT_TITLES[key][0], 'title_th': ENT_DOCUMENT_TITLES[key][1]}
+                for key in doc_types]
 
     def _ent_tax_id(self, vat):
         """0105553003015 -> '0 1055 5300 301 5' (Thai 13-digit tax ID grouping)."""
