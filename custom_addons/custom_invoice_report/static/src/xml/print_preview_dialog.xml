@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="custom_invoice_report.PrintPreviewDialog">
+        <Dialog
+            size="this.state.fullscreen ? 'fs' : 'xl'"
+            title="this.dialogTitle"
+            contentClass="'o_print_preview_dialog' + (this.state.fullscreen ? ' o_print_preview_fullscreen' : '')"
+            bodyClass="'o_print_preview_body'"
+            withBodyPadding="false"
+            onExpand="() => this.toggleFullscreen()"
+        >
+            <t t-set-slot="header" t-slot-scope="scope">
+                <t t-if="scope.isFullscreen">
+                    <button
+                        type="button"
+                        class="btn oi oi-lg"
+                        data-icon="arrow_back"
+                        aria-label="Close"
+                        tabindex="-1"
+                        t-on-click="() => this.onRequestClose(scope.close)"
+                    />
+                </t>
+                <div
+                    class="o_print_preview_header_title d-flex align-items-center gap-2 flex-grow-1 min-w-0"
+                    t-att-class="{ 'me-auto ms-3': scope.isFullscreen }"
+                >
+                    <t t-if="this.props.availableReports?.length">
+                        <Dropdown menuClass="'o_print_preview_report_menu'">
+                            <button
+                                type="button"
+                                class="btn btn-light border o_print_preview_report_selector d-inline-flex align-items-center gap-2"
+                                t-att-disabled="this.state.switching || this.state.busy"
+                            >
+                                <i class="oi text-muted" data-icon="print" aria-hidden="true"/>
+                                <span class="fw-semibold text-truncate" t-out="this.dialogTitle"/>
+                                <span
+                                    t-if="this.state.currentEditable"
+                                    class="badge rounded-pill text-bg-primary-subtle text-primary o_print_preview_mode_badge"
+                                >
+                                    Editable
+                                </span>
+                                <span
+                                    t-else=""
+                                    class="badge rounded-pill o_print_preview_mode_badge o_print_preview_badge_readonly"
+                                >
+                                    Preview
+                                </span>
+                                <i class="oi ms-1" data-icon="arrow_drop_down" aria-hidden="true"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <t t-foreach="this.props.availableReports" t-as="rep" t-key="rep.report_name">
+                                    <DropdownItem
+                                        class="'o_menu_item d-flex align-items-center justify-content-between gap-3' + (rep.report_name === this.state.currentReportName ? ' o_print_preview_item_active fw-semibold' : '')"
+                                        onSelected="() => this.onSelectReport(rep)"
+                                    >
+                                        <span class="d-flex align-items-center gap-2 text-truncate">
+                                            <i
+                                                class="oi oi-fw"
+                                                data-icon="check"
+                                                t-att-class="{ 'opacity-0': rep.report_name !== this.state.currentReportName }"
+                                                aria-hidden="true"
+                                            />
+                                            <span t-out="rep.name"/>
+                                        </span>
+                                        <span
+                                            t-if="rep.editable"
+                                            class="badge rounded-pill text-bg-primary-subtle text-primary o_print_preview_mode_badge"
+                                        >
+                                            Editable
+                                        </span>
+                                        <span
+                                            t-else=""
+                                            class="badge rounded-pill o_print_preview_mode_badge o_print_preview_badge_readonly"
+                                        >
+                                            Preview
+                                        </span>
+                                    </DropdownItem>
+                                </t>
+                            </t>
+                        </Dropdown>
+                    </t>
+                    <t t-else="">
+                        <h4 class="modal-title text-wrap text-break fs-3 mb-0" t-out="this.dialogTitle"/>
+                    </t>
+
+                    <span
+                        t-if="!this.state.currentEditable"
+                        class="o_print_preview_readonly_hint d-none d-md-inline-flex align-items-center gap-1 text-muted small"
+                    >
+                        <i class="oi" data-icon="visibility" aria-hidden="true"/>
+                        <span>Read-only preview</span>
+                    </span>
+                </div>
+
+                <button
+                    t-if="this.canToggleSidebar"
+                    type="button"
+                    class="btn btn-sm o_print_preview_layout_toggle d-inline-flex align-items-center gap-1 me-1"
+                    t-att-class="this.state.sidebarCollapsed ? 'btn-light border' : 'btn-primary-subtle text-primary border border-primary-subtle'"
+                    t-att-title="this.state.sidebarCollapsed ? 'Show Layout Customizer' : 'Hide Layout Customizer'"
+                    t-on-click="() => this.toggleSidebar()"
+                >
+                    <i class="oi" data-icon="tune" aria-hidden="true"/>
+                    <span class="d-none d-sm-inline">Layout</span>
+                </button>
+                <button
+                    type="button"
+                    class="btn oi oi-lg opacity-50 opacity-100-hover o_expand_button"
+                    data-icon="expand_content"
+                    aria-label="Expand"
+                    tabindex="-1"
+                    t-on-click="() => this.toggleFullscreen()"
+                />
+                <t t-if="!scope.isFullscreen">
+                    <button
+                        type="button"
+                        class="btn-close"
+                        title="Close"
+                        aria-label="Close"
+                        tabindex="-1"
+                        t-on-click="() => this.onRequestClose(scope.close)"
+                    />
+                </t>
+            </t>
+
+            <div class="o_print_preview_split">
+                <aside t-if="this.showCustomizer" class="o_print_preview_sidebar">
+                    <div class="o_print_preview_sidebar_header">
+                        <div class="d-flex align-items-center gap-2 min-w-0">
+                            <span class="fw-semibold text-truncate">Customize Layout</span>
+                            <span
+                                t-if="this.isLayoutDirty"
+                                class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis o_print_preview_unsaved_badge"
+                            >
+                                Unsaved
+                            </span>
+                        </div>
+                        <button
+                            t-if="this.isLayoutDirty"
+                            type="button"
+                            class="btn btn-link btn-sm p-0 text-decoration-none o_print_preview_revert_btn"
+                            t-att-disabled="this.state.busy || this.state.savingLayout"
+                            t-on-click="() => this.onRevertLayout()"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="undo" aria-hidden="true"/>
+                            <span>Revert</span>
+                        </button>
+                    </div>
+
+                    <div class="o_print_preview_sidebar_body">
+                        <div class="o_layout_field">
+                            <label class="o_layout_label">Layout</label>
+                            <div class="d-flex flex-wrap gap-1">
+                                <t t-foreach="this.layoutOptions" t-as="opt" t-key="opt.id">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm o_layout_pill"
+                                        t-att-class="opt.id === this.state.draftLayout.report_layout_id ? 'btn-primary active' : 'btn-light border'"
+                                        t-on-click="() => this.onSelectLayout(opt.id)"
+                                        t-out="opt.name"
+                                    />
+                                </t>
+                            </div>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label">Tables</label>
+                            <div class="d-flex flex-wrap gap-1">
+                                <t t-foreach="this.tableStyleOptions" t-as="opt" t-key="opt.value">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm o_layout_pill"
+                                        t-att-class="opt.value === this.state.draftLayout.report_tables_id ? 'btn-primary active' : 'btn-light border'"
+                                        t-on-click="() => this.onSelectTableStyle(opt.value)"
+                                        t-out="opt.label"
+                                    />
+                                </t>
+                            </div>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_font_select">Text</label>
+                            <select
+                                id="o_preview_font_select"
+                                t-ref="this.fontSelectRef"
+                                class="form-select form-select-sm"
+                                t-on-change="(ev) => this.onChangeFont(ev)"
+                            >
+                                <t t-foreach="this.fontOptions" t-as="opt" t-key="opt.value">
+                                    <option
+                                        t-att-value="opt.value"
+                                        t-att-selected="opt.value === this.state.draftLayout.font"
+                                        t-out="opt.label"
+                                    />
+                                </t>
+                            </select>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label">Logo</label>
+                            <div class="o_layout_logo_box">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    class="d-none"
+                                    t-ref="this.logoInputRef"
+                                    t-on-change="(ev) => this.onLogoFileChange(ev)"
+                                />
+                                <t t-if="this.logoDataUrl">
+                                    <img
+                                        t-att-src="this.logoDataUrl"
+                                        alt="Company Logo"
+                                        class="o_layout_logo_thumb"
+                                    />
+                                </t>
+                                <span t-else="" class="text-muted small fst-italic">No logo</span>
+                                <div class="d-flex align-items-center gap-1 ms-auto">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-light border"
+                                        title="Upload Logo"
+                                        t-on-click="() => this.onTriggerLogoUpload()"
+                                    >
+                                        <i class="oi oi-fw" data-icon="upload" aria-hidden="true"/>
+                                        <span>Upload</span>
+                                    </button>
+                                    <button
+                                        t-if="this.logoDataUrl"
+                                        type="button"
+                                        class="btn btn-sm btn-light border text-danger"
+                                        title="Clear Logo"
+                                        t-on-click="() => this.onClearLogo()"
+                                    >
+                                        <i class="oi" data-icon="delete" aria-hidden="true"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label">Colors</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="o_color_swatch_group" title="Primary Color">
+                                    <input
+                                        type="color"
+                                        t-ref="this.primaryColorInputRef"
+                                        aria-label="Primary Color"
+                                        class="form-control form-control-color o_layout_color_input"
+                                        t-att-value="this.state.draftLayout.primary_color"
+                                        t-on-input="(ev) => this.onInputColor('primary_color', ev)"
+                                        t-on-change="(ev) => this.onChangeColor('primary_color', ev)"
+                                    />
+                                    <span class="small text-muted">Primary</span>
+                                </div>
+                                <div class="o_color_swatch_group" title="Secondary Color">
+                                    <input
+                                        type="color"
+                                        t-ref="this.secondaryColorInputRef"
+                                        aria-label="Secondary Color"
+                                        class="form-control form-control-color o_layout_color_input"
+                                        t-att-value="this.state.draftLayout.secondary_color"
+                                        t-on-input="(ev) => this.onInputColor('secondary_color', ev)"
+                                        t-on-change="(ev) => this.onChangeColor('secondary_color', ev)"
+                                    />
+                                    <span class="small text-muted">Secondary</span>
+                                </div>
+                                <button
+                                    t-if="this.hasCustomColors"
+                                    type="button"
+                                    class="btn btn-sm btn-light border ms-auto o_layout_reset_colors_btn"
+                                    title="Reset to logo colors"
+                                    t-on-click="() => this.onResetLogoColors()"
+                                >
+                                    <i class="oi oi-fw" data-icon="redo" aria-hidden="true"/>
+                                    <span>Reset</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_address_input">Address</label>
+                            <textarea
+                                id="o_preview_address_input"
+                                t-ref="this.addressInputRef"
+                                rows="2"
+                                class="form-control form-control-sm"
+                                t-att-placeholder="this.state.draftLayout.company_details_placeholder || 'Company address...'"
+                                t-on-input="(ev) => this.onInputField('company_details', ev)"
+                            />
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_tagline_input">Tagline</label>
+                            <input
+                                id="o_preview_tagline_input"
+                                t-ref="this.taglineInputRef"
+                                type="text"
+                                class="form-control form-control-sm"
+                                placeholder="e.g. Global Business Solutions"
+                                t-att-value="this.state.draftLayout.report_header"
+                                t-on-input="(ev) => this.onInputField('report_header', ev)"
+                            />
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_footer_input">Footer</label>
+                            <textarea
+                                id="o_preview_footer_input"
+                                t-ref="this.footerInputRef"
+                                rows="2"
+                                class="form-control form-control-sm"
+                                placeholder="Write your phone, email, bank account, tax ID, ..."
+                                t-on-input="(ev) => this.onInputField('report_footer', ev)"
+                            />
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_paperformat_select">Paper Format</label>
+                            <select
+                                id="o_preview_paperformat_select"
+                                t-ref="this.paperformatSelectRef"
+                                class="form-select form-select-sm"
+                                t-on-change="(ev) => this.onChangePaperformat(ev)"
+                            >
+                                <t t-foreach="this.paperformatOptions" t-as="opt" t-key="opt.id">
+                                    <option
+                                        t-att-value="opt.id"
+                                        t-att-selected="opt.id === this.state.draftLayout.paperformat_id"
+                                        t-out="opt.name"
+                                    />
+                                </t>
+                            </select>
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_vat_input" t-out="this.state.draftLayout.vat_label || 'Tax ID'"/>
+                            <input
+                                id="o_preview_vat_input"
+                                t-ref="this.vatInputRef"
+                                type="text"
+                                class="form-control form-control-sm"
+                                t-att-value="this.state.draftLayout.vat"
+                                t-on-input="(ev) => this.onInputField('vat', ev)"
+                            />
+                        </div>
+
+                        <div class="o_layout_field">
+                            <label class="o_layout_label" for="o_preview_bank_input">
+                                <span>Bank Account</span>
+                                <span t-if="this.state.draftLayout.qr_code" class="text-danger ms-1">*</span>
+                            </label>
+                            <input
+                                id="o_preview_bank_input"
+                                type="text"
+                                t-ref="this.bankAccountInputRef"
+                                class="form-control form-control-sm"
+                                t-att-class="{ 'is-invalid': this.missingBankForQr }"
+                                placeholder="BE71096123456769"
+                                t-att-value="this.state.draftLayout.account_number"
+                                t-on-input="(ev) => this.onInputField('account_number', ev)"
+                            />
+                            <div t-if="this.missingBankForQr" class="invalid-feedback d-block small">
+                                Required when saving QR Code.
+                            </div>
+                        </div>
+
+                        <div t-if="this.state.fromInvoice" class="o_layout_field o_layout_qr_row">
+                            <div class="form-check form-switch m-0">
+                                <input
+                                    id="o_preview_qr_checkbox"
+                                    t-ref="this.qrCheckboxRef"
+                                    type="checkbox"
+                                    class="form-check-input"
+                                    t-att-checked="this.state.draftLayout.qr_code"
+                                    t-on-change="(ev) => this.onToggleQrCode(ev)"
+                                />
+                                <label class="form-check-label fw-medium" for="o_preview_qr_checkbox">
+                                    QR Code
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="o_print_preview_viewer_pane">
+                    <div
+                        t-if="!this.state.viewerReady || this.state.switching || this.state.renderingLayout"
+                        class="o_print_preview_loading"
+                    >
+                        <i class="oi oi-3x oi-fw oi-spin text-white" data-icon="autorenew" role="img" aria-label="Loading preview"/>
+                        <span t-if="this.state.renderingLayout">Updating preview...</span>
+                        <span t-else="">Loading PDF preview...</span>
+                    </div>
+                    <iframe
+                        class="o_print_preview_iframe"
+                        t-ref="this.iframeRef"
+                        t-att-src="this.viewerUrl"
+                        t-on-load="() => this.onIframeLoad()"
+                        title="PDF Print Preview"
+                    />
+                </div>
+            </div>
+
+            <t t-set-slot="footer">
+                <t t-if="this.canToggleSidebar">
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary o_print_preview_save_layout_btn"
+                        t-att-disabled="!this.isLayoutDirty || this.state.busy || this.state.savingLayout"
+                        t-on-click="() => this.onClickSaveLayout()"
+                    >
+                        <i class="oi oi-fw me-1" data-icon="save" aria-hidden="true"/>
+                        <span t-if="this.state.savingLayout">Saving...</span>
+                        <span t-else="">Save Layout</span>
+                    </button>
+                </t>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    t-att-disabled="this.state.busy || this.state.switching || this.state.savingLayout || !this.state.viewerReady"
+                    t-on-click="() => this.onClickPrint()"
+                >
+                    <i class="oi oi-fw me-1" data-icon="print" aria-hidden="true"/>
+                    <span>Print</span>
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    t-att-disabled="this.state.busy || this.state.switching || this.state.savingLayout"
+                    t-on-click="() => this.onClickDownload()"
+                >
+                    <i class="oi oi-fw me-1" data-icon="download" aria-hidden="true"/>
+                    <span>Download PDF</span>
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-secondary ms-auto"
+                    t-att-disabled="this.state.busy || this.state.savingLayout"
+                    t-on-click="() => this.onRequestClose()"
+                >
+                    <span>Close</span>
+                </button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

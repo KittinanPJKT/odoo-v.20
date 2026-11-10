@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_report_print_log_list" model="ir.ui.view">
+        <field name="name">report.print.log.list</field>
+        <field name="model">report.print.log</field>
+        <field name="arch" type="xml">
+            <list string="Print Audit Log" create="false" edit="false" delete="false" sample="1">
+                <field name="printed_at"/>
+                <field name="actor_name" string="Printed By"/>
+                <field name="user_id" optional="hide"/>
+                <field name="model_name" string="Document Type"/>
+                <field name="res_name" string="Document"/>
+                <field name="report_label" string="Menu / Report Printed"/>
+                <field name="action_type" widget="badge" decoration-success="action_type == 'print'" decoration-info="action_type == 'download'"/>
+                <field name="print_sequence" string="Print #"/>
+                <field name="channel"/>
+                <field name="output_format" optional="show"/>
+                <field name="batch_size" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="res_id" column_invisible="True"/>
+                <button name="action_open_document"
+                        type="object"
+                        string="Open"
+                        class="btn-link"
+                        invisible="not res_id"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View (Read-only Audit Record) -->
+    <record id="view_report_print_log_form" model="ir.ui.view">
+        <field name="name">report.print.log.form</field>
+        <field name="model">report.print.log</field>
+        <field name="arch" type="xml">
+            <form string="Print Audit Log" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_open_document"
+                            type="object"
+                            string="Open Document"
+                            class="btn-primary"
+                            invisible="not res_id"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="res_name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Print Details">
+                            <field name="printed_at"/>
+                            <field name="actor_name" string="Printed By"/>
+                            <field name="user_id"/>
+                            <field name="print_sequence"/>
+                            <field name="batch_size"/>
+                        </group>
+                        <group string="Document &amp; Report">
+                            <field name="report_label"/>
+                            <field name="report_id"/>
+                            <field name="report_name" groups="base.group_no_one"/>
+                            <field name="action_type"/>
+                            <field name="channel"/>
+                            <field name="output_format"/>
+                            <field name="model_name"/>
+                            <field name="res_model" groups="base.group_no_one"/>
+                            <field name="res_id" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_report_print_log_search" model="ir.ui.view">
+        <field name="name">report.print.log.search</field>
+        <field name="model">report.print.log</field>
+        <field name="arch" type="xml">
+            <search string="Search Print Audit Log">
+                <field name="res_name" string="Document"/>
+                <field name="report_label" string="Menu / Report"/>
+                <field name="actor_name" string="Printed By"/>
+                <field name="model_name" string="Document Type"/>
+                <field name="user_id"/>
+                <filter name="my_prints" string="My Prints" domain="[('user_id', '=', uid)]"/>
+                <separator/>
+                <filter name="printed_at" string="Printed Date" date="printed_at"/>
+                <separator/>
+                <filter name="action_print" string="Print Only" domain="[('action_type', '=', 'print')]"/>
+                <filter name="action_download" string="Download Only" domain="[('action_type', '=', 'download')]"/>
+                <separator/>
+                <filter name="channel_report_preview" string="Print Preview Modal" domain="[('channel', '=', 'report_preview')]"/>
+                <filter name="channel_report_menu" string="Print Menu / Button" domain="[('channel', '=', 'report_menu')]"/>
+                <filter name="channel_send_download" string="Send &amp; Print Download" domain="[('channel', '=', 'send_download')]"/>
+                <filter name="channel_portal_download" string="Portal Preview Download" domain="[('channel', '=', 'portal_download')]"/>
+                <separator/>
+                <filter name="accounting_docs" string="Accounting Documents" domain="[('res_model', 'in', ('account.move', 'account.payment'))]"/>
+                <group>
+                    <filter name="group_by_action" string="Action" context="{'group_by': 'action_type'}"/>
+                    <filter name="group_by_actor" string="Printed By" context="{'group_by': 'actor_name'}"/>
+                    <filter name="group_by_report" string="Menu / Report Printed" context="{'group_by': 'report_label'}"/>
+                    <filter name="group_by_model" string="Document Type" context="{'group_by': 'model_name'}"/>
+                    <filter name="group_by_channel" string="Print Channel" context="{'group_by': 'channel'}"/>
+                    <filter name="group_by_date" string="Printed Date" context="{'group_by': 'printed_at:day'}"/>
+                    <filter name="group_by_company" string="Company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Window Action: All Print Audit Logs (System-wide) -->
+    <record id="action_report_print_log_all" model="ir.actions.act_window">
+        <field name="name">Print Audit Log</field>
+        <field name="res_model">report.print.log</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_report_print_log_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No print logs recorded yet
+            </p>
+            <p>
+                Whenever a user prints or downloads a document PDF from Odoo, the details are recorded here and in the document's Chatter.
+            </p>
+        </field>
+    </record>
+
+    <!-- Window Action: Accounting Print Audit Logs -->
+    <record id="action_report_print_log_account" model="ir.actions.act_window">
+        <field name="name">Print Audit Log</field>
+        <field name="res_model">report.print.log</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('res_model', 'in', ('account.move', 'account.payment'))]</field>
+        <field name="search_view_id" ref="view_report_print_log_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No accounting print logs recorded yet
+            </p>
+            <p>
+                Whenever an invoice, tax invoice, receipt, or payment is printed, the user, report menu, and timestamp are recorded here.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu 1: Invoicing -> Reporting -> Management -> Print Audit Log -->
+    <menuitem id="menu_report_print_log_account"
+              name="Print Audit Log"
+              parent="account.account_reports_management_menu"
+              action="action_report_print_log_account"
+              groups="account.group_account_readonly,account.group_account_invoice"
+              sequence="30"/>
+
+    <!-- Menu 2: Settings -> Users & Companies -> Print Audit Log (accessible to System Admins without Debug Mode) -->
+    <menuitem id="menu_report_print_log_settings"
+              name="Print Audit Log"
+              parent="base.menu_users"
+              action="action_report_print_log_all"
+              groups="base.group_system"
+              sequence="50"/>
+
+    <!-- Menu 3: Settings -> Technical -> Reporting -> Print Audit Log -->
+    <menuitem id="menu_report_print_log_technical"
+              name="Print Audit Log"
+              parent="base.reporting_menuitem"
+              action="action_report_print_log_all"
+              groups="base.group_no_one"
+              sequence="10"/>
+</odoo>
