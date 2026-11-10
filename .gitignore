@@ -4,6 +4,7 @@ _build/
 # dotfiles
 .*
 !.gitignore
+!.gitattributes
 !.gitkeep
 !.github
 !.mailmap
@@ -51,3 +52,12 @@ package.json
 /man/
 /share/
 /src/
+
+# Multi-environment server deployment (secrets, runtime data, and backups)
+deploy/env/*.env
+deploy/backups/
+deploy/data/
+tmp_migrate/
+odoo_migrate.tar.gz
+*.dump
+*.sql.gz

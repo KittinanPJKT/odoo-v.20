@@ -1,0 +1,113 @@
+{
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+}
+
+# ==============================================================================
+# 3. PRODUCTION (ตัวจริง - สำหรับลูกค้าใช้งานจริง)
+# ==============================================================================
+{$PROD_DOMAIN:erp.localhost} {
+	import security_headers
+	encode gzip zstd
+
+	request_body {
+		max_size 200MB
+	}
+
+	# Defense-in-depth: block Database Manager / Selector on Production
+	@blocked_db path /web/database /web/database/*
+	respond @blocked_db 403
+
+	# Optional: uncomment if no external XML-RPC / JSON-RPC integrations are used
+	# @blocked_rpc path /xmlrpc /xmlrpc/*
+	# respond @blocked_rpc 403
+
+	# Odoo WebSocket / Real-time bus (Prefork workers > 0 uses gevent_port 8072)
+	handle /websocket* {
+		reverse_proxy odoo-prod:8072
+	}
+
+	# Main Odoo HTTP traffic (Caddy automatically sets X-Forwarded-Host/Proto/For)
+	handle {
+		reverse_proxy odoo-prod:8069 {
+			transport http {
+				response_header_timeout 1200s
+			}
+		}
+	}
+}
+
+# ==============================================================================
+# 2. TEST B / DEMO / UAT (ใช้ Demo ก่อนรันระบบจริง)
+# ==============================================================================
+{$TEST_B_DOMAIN:demo.localhost} {
+	import security_headers
+	header X-Robots-Tag "noindex, nofollow"
+	encode gzip zstd
+
+	request_body {
+		max_size 200MB
+	}
+
+	# Optional: protect Demo site from public access (generate hash via: docker exec odoo-caddy caddy hash-password)
+	# basic_auth /* {
+	# 	demo <BCRYPT_HASH_FROM_CADDY>
+	# }
+
+	# Block Database Manager on Demo URL; manage DB via backup/restore scripts
+	@blocked_db path /web/database /web/database/*
+	respond @blocked_db 403
+
+	handle /websocket* {
+		reverse_proxy odoo-test-b:8072
+	}
+
+	handle {
+		reverse_proxy odoo-test-b:8069 {
+			transport http {
+				response_header_timeout 1200s
+			}
+		}
+	}
+}
+
+# ==============================================================================
+# 1. TEST A / DEV / TEAM TESTING (ทีมทดสอบระบบ)
+# ==============================================================================
+{$TEST_A_DOMAIN:dev.localhost} {
+	import security_headers
+	header X-Robots-Tag "noindex, nofollow"
+	encode gzip zstd
+
+	request_body {
+		max_size 200MB
+	}
+
+	# Recommended: restrict Dev environment with Basic Auth or Office/VPN IP
+	# basic_auth /* {
+	# 	dev <BCRYPT_HASH_FROM_CADDY>
+	# }
+	# @not_office not remote_ip <OFFICE_OR_VPN_CIDR>
+	# respond @not_office 403
+
+	# test-a uses workers=0 (ThreadedServer), so /websocket runs on port 8069.
+	# If you switch test-a to workers > 0 later, add:
+	# handle /websocket* { reverse_proxy odoo-test-a:8072 }
+	handle {
+		reverse_proxy odoo-test-a:8069 {
+			transport http {
+				response_header_timeout 1200s
+			}
+		}
+	}
+}

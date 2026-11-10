@@ -1,0 +1,100 @@
+name: odoo-test-a
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16
+    container_name: db-test-a
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256mb
+    mem_limit: ${DB_MEM_LIMIT:-1g}
+    ports:
+      # Localhost-only for SSH tunnel debugging (pgAdmin / DBeaver)
+      - "127.0.0.1:${DB_LOCAL_PORT:-5434}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/test-a.env}
+    volumes:
+      - pg_data_test_a:/var/lib/postgresql/data
+    networks:
+      - test_a_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit-test-a
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:${MAILPIT_LOCAL_PORT:-8025}:8025"
+    networks:
+      - test_a_internal
+
+  odoo:
+    image: odoo-etnc:${ODOO_IMAGE_TAG:-20.0}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: odoo-test-a
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: ${ODOO_MEM_LIMIT:-2g}
+    cpus: ${ODOO_CPU_LIMIT:-1.0}
+    env_file:
+      - ./env/test-a.env
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-odoo}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in deploy/env/test-a.env}
+    volumes:
+      - odoo_data_test_a:/var/lib/odoo
+      - ./config/odoo.test-a.conf:/etc/odoo/odoo.conf:ro
+      - ${CUSTOM_ADDONS_PATH:-../custom_addons}:/opt/odoo/custom_addons
+    networks:
+      - test_a_internal
+      - odoo_proxy_net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pg_data_test_a:
+    name: pg_data_test_a
+  odoo_data_test_a:
+    name: odoo_data_test_a
+
+networks:
+  test_a_internal:
+    name: odoo_test_a_internal
+    internal: true
+  odoo_proxy_net:
+    name: odoo_proxy_net
+    external: true
+
