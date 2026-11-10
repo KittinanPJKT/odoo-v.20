@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inject compiled temporary preview CSS at the end of report <head> for both
+         wkhtmltopdf streams (minimal_layout body/header/footer) and HTML reports. -->
+    <template id="report_layout_preview_css" inherit_id="web.report_layout">
+        <xpath expr="//t[@t-call-assets='web.report_assets_common']" position="after">
+            <style t-if="env.context.get('custom_preview_css')" id="custom_preview_company_style" type="text/css" t-out="env['res.company']._get_preview_css_markup()"/>
+        </xpath>
+    </template>
+
+    <template id="minimal_layout_preview_css" inherit_id="web.minimal_layout">
+        <xpath expr="//t[@t-call-assets='web.report_assets_common']" position="after">
+            <style t-if="env.context.get('custom_preview_css')" id="custom_preview_company_style" type="text/css" t-out="env['res.company']._get_preview_css_markup()"/>
+        </xpath>
+    </template>
+
+    <!-- Wrap `company` with an in-memory read-only CompanyPreviewProxy only when
+         `custom_preview_overrides` context is present. -->
+    <template id="external_layout_preview_override" inherit_id="web.external_layout">
+        <xpath expr="//t[@t-if='company.external_report_layout_id']" position="before">
+            <t t-set="company" t-value="company._with_preview_overrides()"/>
+        </xpath>
+    </template>
+
+    <!-- Override Bank Account & QR Code display cleanly in-memory during Print Preview,
+         preserving XPath selectors (`//p[@name='payment_communication']//t[@t-if='o.partner_bank_id']`
+         and `//div[@id='qrcode']`) for all dependent views (e.g. account, l10n_th). -->
+    <template id="report_invoice_document_live_preview" inherit_id="account.report_invoice_document">
+        <xpath expr="//p[@name='payment_communication']//t[@t-if='o.partner_bank_id']" position="replace">
+            <t t-if="not o._preview_has_bank_override()">
+                <t t-if="o.partner_bank_id">
+                    <br/> on this account: <span t-field="o.partner_bank_id" class="fw-bold"/>
+                </t>
+            </t>
+            <t t-elif="o._preview_override_bank_number()">
+                <br/> on this account: <span class="fw-bold" t-out="o._preview_override_bank_number()"/>
+            </t>
+        </xpath>
+
+        <xpath expr="//t[@t-set='show_qr']" position="after">
+            <t t-set="show_qr" t-value="o._preview_show_qr(show_qr)"/>
+        </xpath>
+
+        <xpath expr="//div[@id='qrcode']//t[@t-set='qr_code_url']" position="attributes">
+            <attribute name="t-value">o._preview_generate_qr_code()</attribute>
+        </xpath>
+    </template>
+</odoo>
