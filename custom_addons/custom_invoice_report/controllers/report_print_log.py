@@ -71,9 +71,12 @@ class ReportPrintLogController(ReportController):
 
     @staticmethod
     def _can_customize_layout():
+        user = request.env.user
         return bool(
             request.env.is_admin()
-            or request.env.user.has_group('account.group_account_basic')
+            or user.has_group('account.group_account_manager')
+            or user.has_group('account.group_account_user')
+            or user.has_group('account.group_account_basic')
         )
 
     @staticmethod
@@ -97,12 +100,12 @@ class ReportPrintLogController(ReportController):
     def _resolve_target_company(self, model='', res_ids=None, company_id=0):
         Company = request.env['res.company']
         clean_ids = self._clean_record_ids(res_ids)
-        if model == 'account.move' and clean_ids:
-            moves = request.env['account.move'].browse(clean_ids).exists()
-            if not moves:
+        if model in ('account.move', 'account.payment') and clean_ids:
+            records = request.env[model].browse(clean_ids).exists()
+            if not records:
                 return Company
-            moves.check_access('read')
-            companies = moves.company_id
+            records.check_access('read')
+            companies = records.company_id
             if len(companies) != 1:
                 return Company
             target = companies
@@ -488,11 +491,17 @@ class ReportPrintLogController(ReportController):
         if docids:
             ids = [int(x) for x in docids.split(',') if x.isdigit()]
             if ids:
-                moves = request.env['account.move'].browse(ids).exists()
-                if not moves:
+                report_obj = request.env['ir.actions.report'].sudo()._get_report_from_name(reportname)
+                target_model = (
+                    report_obj.model
+                    if report_obj and report_obj.model in request.env
+                    else 'account.move'
+                )
+                records = request.env[target_model].browse(ids).exists()
+                if not records:
                     return ctx
-                moves.check_access('read')
-                if any(m.company_id.id != company.id for m in moves):
+                records.check_access('read')
+                if 'company_id' in records._fields and any(r.company_id.id != company.id for r in records):
                     return ctx
 
         allowed_company_fields = (

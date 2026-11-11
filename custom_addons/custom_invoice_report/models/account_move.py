@@ -1,8 +1,30 @@
-import math
-import unicodedata
+from odoo import api, fields, models
+from odoo.tools import float_is_zero
 
-from odoo import models
-from odoo.tools.image import binary_to_image, image_apply_opt, image_data_uri
+from .entronica_report_mixin import (
+    DESC_CHARS_PER_LINE,
+    EN_MONTHS,
+    ENT_DOCUMENT_TITLES,
+    ITEMS_HEIGHT_LAST,
+    ITEMS_HEIGHT_NEXT,
+    LAST_BOTTOM_HEIGHT,
+    LINE_HEIGHT,
+    LOGO_BOX_HEIGHT,
+    LOGO_BOX_WIDTH,
+    LOGO_MAX_PIXELS,
+    NAME_ONE_LINE_CHARS,
+    NEXT_BOTTOM_HEIGHT,
+    PAGE_BODY_HEIGHT,
+    PROJECT_TWO_LINE_CHARS,
+    ROW_PADDING,
+    THAI_DIGITS,
+    THAI_PLACES,
+    TOP_HEIGHT,
+    _strip_label_prefix,
+    _thai_number,
+    _visible_length,
+    baht_text,
+)
 
 # Odoo's standard sample QR code image for Print Preview when QR Code is toggled on
 # before a valid PromptPay / SEPA / EMV bank proxy has been saved on the company.
@@ -102,192 +124,97 @@ PREVIEW_SAMPLE_QR_URI = (
     "KPDRcx4T5HZ4XoAL0Brn/H/X/4BQHho1fwAAAABJRU5ErkJggg=="
 )
 
-# Page geometry, in mm. These must match invoice_report.scss: the template draws
-# every page as a fixed-height block, so pagination is decided here, not by
-# wkhtmltopdf, which is what keeps the totals and the signature boxes together
-# on the last page whatever the number of lines.
-PAGE_BODY_HEIGHT = 275.0     # A4 297mm - 10mm top - 10mm bottom - 2mm safety
-TOP_HEIGHT = 75.0            # company header + title + customer boxes + table head
-LAST_BOTTOM_HEIGHT = 72.0    # totals + amount in words + signature boxes
-NEXT_BOTTOM_HEIGHT = 8.0     # "continued on next page" strip
-ROW_PADDING = 1.2            # vertical padding of one item row
-LINE_HEIGHT = 5.0            # height of one text line in an item row
-DESC_CHARS_PER_LINE = 44     # conservative width of the description column
-NAME_ONE_LINE_CHARS = {'th': 32, 'en': 36}  # company name length that fits one header line
-LOGO_BOX_WIDTH = 34.0        # logo area in the header, see .ent-logo-box
-LOGO_BOX_HEIGHT = 13.0
-LOGO_MAX_PIXELS = (402, 154)  # logo box at 300 dpi, keeps the PDF light
-
-ITEMS_HEIGHT_LAST = PAGE_BODY_HEIGHT - TOP_HEIGHT - LAST_BOTTOM_HEIGHT
-ITEMS_HEIGHT_NEXT = PAGE_BODY_HEIGHT - TOP_HEIGHT - NEXT_BOTTOM_HEIGHT
-
-THAI_DIGITS = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
-THAI_PLACES = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
-EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-             'August', 'September', 'October', 'November', 'December']
-
-# Document types the layout can print, as (English title, Thai title). A report
-# template passes a list of these keys in `doc_types`; several keys print one
-# full set of pages per key, in that order (e.g. original then copy).
-# Tax invoice / receipt variants will be added here.
-ENT_DOCUMENT_TITLES = {
-    'invoice_original': ('ORIGINAL INVOICE', 'ต้นฉบับใบแจ้งหนี้ / ใบวางบิล'),
-    'invoice_copy': ('INVOICE COPY', 'สำเนาใบแจ้งหนี้ / ใบวางบิล'),
-}
-
-
-def _thai_number(number):
-    """Read a non-negative integer in Thai (no unit)."""
-    if number == 0:
-        return ''
-    if number >= 1_000_000:
-        millions, rest = divmod(number, 1_000_000)
-        return _thai_number(millions) + 'ล้าน' + ('เอ็ด' if rest == 1 else _thai_number(rest))
-    words = ''
-    digits = str(number)
-    size = len(digits)
-    for i, char in enumerate(digits):
-        digit = int(char)
-        place = size - i - 1
-        if digit == 0:
-            continue
-        if place == 0 and digit == 1 and size > 1:
-            words += 'เอ็ด'
-        elif place == 1 and digit == 2:
-            words += 'ยี่'
-        elif place == 1 and digit == 1:
-            words += ''
-        else:
-            words += THAI_DIGITS[digit]
-        words += THAI_PLACES[place]
-    return words
-
-
-def baht_text(amount):
-    """1234.50 -> 'หนึ่งพันสองร้อยสามสิบสี่บาทห้าสิบสตางค์'"""
-    negative = amount < 0
-    satang_total = int(round(abs(amount) * 100))
-    baht, satang = divmod(satang_total, 100)
-    if baht == 0 and satang == 0:
-        return 'ศูนย์บาทถ้วน'
-    text = ''
-    if baht:
-        text += _thai_number(baht) + 'บาท'
-    text += _thai_number(satang) + 'สตางค์' if satang else 'ถ้วน'
-    return ('ลบ' if negative else '') + text
-
-
-def _visible_length(text):
-    """Thai vowels and tone marks above/below a consonant take no width."""
-    return sum(1 for char in text if not unicodedata.combining(char)
-               and unicodedata.category(char) != 'Mn')
-
 
 class AccountMove(models.Model):
-    _inherit = 'account.move'
+    _name = 'account.move'
+    _inherit = ['account.move', 'entronica.report.mixin']
 
     # ------------------------------------------------------------------
-    # Formatting helpers used by the QWeb template
+    # Thai Billing & Payment Fields
     # ------------------------------------------------------------------
-    def _ent_amount(self, value):
-        """Accounting style: 1,234.00 and '-' for zero, like the Excel form."""
-        if not value or self.currency_id.is_zero(value):
-            return '-'
-        return '{:,.2f}'.format(value)
+    # ข้อมูลโครงการและงวดงาน
+    project_name = fields.Char(string="Project Name", help="ชื่อโครงการ เช่น Professional Service")
+    period = fields.Char(string="Period", help="งวดการทำงาน/รอบการวางบิล เช่น May26")
 
-    def _ent_qty(self, value):
-        if not value:
-            return ''
-        return '{:,.0f}'.format(value) if float(value).is_integer() else '{:,.2f}'.format(value)
+    # สาขาของบริษัทในเอกสาร (ค่าเริ่มต้นจากข้อมูลบริษัท สามารถพิมพ์แก้ไขเฉพาะใบนี้ได้)
+    company_branch_name = fields.Char(
+        string="Company Branch",
+        compute="_compute_company_branch_name",
+        store=True,
+        readonly=False,
+        precompute=True,
+        help="สาขาของบริษัทที่แสดงบนเอกสาร (ค่าเริ่มต้นจากข้อมูลบริษัท สามารถพิมพ์แก้ไขเฉพาะใบนี้ได้)",
+    )
 
-    def _ent_long_date(self, date):
-        return date and f'{date.day} {EN_MONTHS[date.month - 1]} {date.year}' or ''
+    # ตัวเลือกแสดงเลขหน้า (หน้า / Page X/Y)
+    show_page_number = fields.Boolean(
+        string="Show Page Number",
+        default=True,
+        help="แสดงข้อความ หน้า / Page X/Y บนหัวเอกสาร",
+    )
 
-    def _ent_short_date(self, date):
-        return date and date.strftime('%d/%m/%Y') or ''
+    @api.depends('company_id', 'company_id.branch_name')
+    def _compute_company_branch_name(self):
+        for move in self:
+            company = move.company_id
+            if company:
+                move.company_branch_name = (company.branch_name or '').strip() or False
+            else:
+                move.company_branch_name = 'สำนักงานใหญ่'
 
-    def _ent_baht_text(self):
-        return baht_text(self.amount_total)
+    # ------------------------------------------------------------------
+    # Document-specific helpers used by the shared QWeb template
+    # ------------------------------------------------------------------
+    def _ent_doc_number(self):
+        self.ensure_one()
+        return self.name if self.name and self.name != '/' else ''
 
-    def _ent_document_titles(self, doc_types):
-        return [{'title_en': ENT_DOCUMENT_TITLES[key][0], 'title_th': ENT_DOCUMENT_TITLES[key][1]}
-                for key in doc_types]
+    def _ent_doc_date(self):
+        self.ensure_one()
+        return self.invoice_date
 
-    def _ent_tax_id(self, vat):
-        """0105553003015 -> '0 1055 5300 301 5' (Thai 13-digit tax ID grouping).
-        A value typed with dashes, or that is not 13 digits, is printed as typed."""
-        digits = ''.join(c for c in (vat or '') if c.isdigit())
-        if len(digits) != 13 or '-' in vat:
-            return vat or ''
-        return f'{digits[0]} {digits[1:5]} {digits[5:9]} {digits[9:12]} {digits[12]}'
+    def _ent_project_name(self):
+        self.ensure_one()
+        return (self.project_name or '').strip()
 
-    def _ent_branch(self, partner):
-        partner = partner.commercial_partner_id
-        if not partner.is_company:
-            return ''
-        code = partner._get_additional_identifier('TH_BRANCH_CODE')
-        if code and code != '00000':
-            return f'สาขาที่ {code}'
-        return 'สำนักงานใหญ่'
-
-    def _ent_address_lines(self, partner):
-        line1 = ' '.join(filter(None, [partner.street, partner.street2]))
-        line2 = ', '.join(filter(None, [partner.city, partner.state_id.name, partner.zip]))
-        return [line for line in (line1, line2) if line]
-
-    def _ent_company_logo(self):
-        """Company logo scaled up or down to fill the fixed logo box, keeping its
-        ratio, as {'src', 'style'}. Empty when the company has no logo of its own."""
-        company = self.company_id
-        if company.uses_default_logo:
-            return {}
-        source = company.logo.content
-        if source[:1] == b'<':
-            # SVG has no pixel size to read: the CSS limits of the box apply
-            return {'src': image_data_uri(source), 'style': ''}
-        image = binary_to_image(source)
-        ratio = min(LOGO_BOX_WIDTH / image.width, LOGO_BOX_HEIGHT / image.height)
-        width, height = image.width * ratio, image.height * ratio
-        image.thumbnail(LOGO_MAX_PIXELS)
+    def _ent_totals(self):
+        self.ensure_one()
         return {
-            'src': image_data_uri(image_apply_opt(image.convert('RGBA'), 'PNG', optimize=True)),
-            'style': f'width: {width:.2f}mm; height: {height:.2f}mm; '
-                     f'margin-top: {(LOGO_BOX_HEIGHT - height) / 2:.2f}mm;',
+            'untaxed': self.amount_untaxed,
+            'vat': self.amount_tax,
+            'total': self.amount_total,
         }
 
-    def _ent_company_name_class(self, name, lang):
-        """A long company name uses a smaller font, so that it wraps on two lines."""
-        long_name = _visible_length(name or '') > NAME_ONE_LINE_CHARS[lang]
-        return 'ent-company-name ent-long' if long_name else 'ent-company-name'
+    def _ent_is_credit_note(self):
+        self.ensure_one()
+        return self.move_type == 'out_refund'
 
-    def _ent_company_address_th(self):
-        company = self.company_id
-        line2 = ' '.join(filter(None, [company.street2, company.city, company.state_id.name, company.zip]))
-        return [line for line in (company.street, line2) if line]
+    def _ent_document_titles(self, doc_types):
+        if len(self) == 1 and self.move_type == 'out_refund':
+            credit_map = {
+                'invoice_original': 'credit_note_original',
+                'invoice_copy': 'credit_note_copy',
+                'tax_invoice_original': 'credit_note_tax_original',
+                'tax_invoice_copy': 'credit_note_tax_copy',
+            }
+            doc_types = [credit_map.get(key, key) for key in doc_types]
+        return super()._ent_document_titles(doc_types)
 
-    def _ent_company_address_en(self):
-        company = self.company_id
-        line2 = ' '.join(filter(None, [company.street2_en, company.city_en, company.zip_en]))
-        return [line for line in (company.street_en, line2) if line]
-
-    def _ent_company_contact(self, phone_label, fax_label):
-        company = self.company_id
-        parts = []
-        if company.phone:
-            parts.append(f'{phone_label} : {company.phone}')
-        if company.fax:
-            parts.append(f'{fax_label} : {company.fax}')
-        return '  '.join(parts)
+    def _ent_baht_text(self):
+        self.ensure_one()
+        return self._ent_amount_words(self.amount_total)
 
     def _ent_vat_rate(self):
         rates = self.invoice_line_ids.tax_ids.filtered(
-            lambda t: t.amount_type == 'percent').mapped('amount')
+            lambda t: t.amount_type == 'percent' and not getattr(t, 'is_withholding_tax', False)
+        ).mapped('amount')
         rates = sorted(set(rates))
         return ', '.join('{:g}%'.format(r) for r in rates) or '0%'
 
-    # ------------------------------------------------------------------
-    # Pagination
-    # ------------------------------------------------------------------
+    def _ent_payment_info(self):
+        self.ensure_one()
+        return {}
+
     def _ent_report_rows(self):
         rows = []
         number = 0
@@ -298,6 +225,9 @@ class AccountMove(models.Model):
                 continue
             if line.display_type != 'product':
                 continue
+            if line.discount and not float_is_zero(line.discount, precision_digits=2):
+                disc_note = f'(ส่วนลด {line.discount:g}% / Discount {line.discount:g}%)'
+                text = f'{text}\n{disc_note}' if text else disc_note
             number += 1
             rows.append({
                 'kind': 'product',
@@ -307,59 +237,50 @@ class AccountMove(models.Model):
                 'price': self._ent_amount(line.price_unit),
                 'amount': self._ent_amount(line.price_subtotal),
             })
-        if self.ref:
-            rows.append({'kind': 'line_note', 'no': '', 'desc': f'PO : {self.ref}'})
-        for row in rows:
-            lines = sum(max(1, math.ceil(_visible_length(part) / DESC_CHARS_PER_LINE))
-                        for part in row['desc'].split('\n'))
-            row['height'] = ROW_PADDING + LINE_HEIGHT * lines
-        return rows
-
-    def _ent_report_pages(self):
-        """Split the rows in pages. Only the last page carries the totals and the
-        signature boxes, the other ones get a taller item area instead."""
-        self.ensure_one()
-        rows = self._ent_report_rows()
-        pages = []
-        start = 0
-        while True:
-            remaining = rows[start:]
-            if sum(r['height'] for r in remaining) <= ITEMS_HEIGHT_LAST:
-                pages.append(remaining)
-                break
-            used, end = 0.0, start
-            while end < len(rows) and used + rows[end]['height'] <= ITEMS_HEIGHT_NEXT:
-                used += rows[end]['height']
-                end += 1
-            # A single row taller than the whole area still has to go somewhere,
-            # and the last page must keep at least one row with the totals.
-            if end == start:
-                end = start + 1
-            if end == len(rows):
-                end -= 1
-            pages.append(rows[start:end])
-            start = end
-        total = len(pages)
-        return [{
-            'rows': page_rows,
-            'number': index + 1,
-            'total': total,
-            'is_last': index + 1 == total,
-            'items_height': ITEMS_HEIGHT_LAST if index + 1 == total else ITEMS_HEIGHT_NEXT,
-        } for index, page_rows in enumerate(pages)]
+        if self.move_type == 'out_refund' and self.reversed_entry_id:
+            orig = self.reversed_entry_id
+            orig_num = orig.name if orig.name and orig.name != '/' else (orig.display_name or '')
+            orig_date = self._ent_long_date(orig.invoice_date)
+            orig_ref = f'{orig_num} ({orig_date})' if orig_date else orig_num
+            if orig_ref:
+                rows.append({
+                    'kind': 'line_note',
+                    'no': '',
+                    'desc': f'Ref. Original Invoice / อ้างอิงใบกำกับภาษีเดิม : {orig_ref}',
+                })
+            if hasattr(self, '_l10n_th_get_credit_debit_note_amounts'):
+                cn_amounts = self._l10n_th_get_credit_debit_note_amounts()
+                if len(cn_amounts) == 2:
+                    dp = self.currency_id.decimal_places if self.currency_id and self.currency_id.decimal_places is not None else 2
+                    orig_amt = f"{cn_amounts[0]['amount']:,.{dp}f}"
+                    corr_amt = f"{cn_amounts[1]['amount']:,.{dp}f}"
+                    rows.append({
+                        'kind': 'line_note',
+                        'no': '',
+                        'desc': f'Original Value / มูลค่าเดิม : {orig_amt} | Correct Value / มูลค่าที่ถูกต้อง : {corr_amt}',
+                    })
+        period = _strip_label_prefix(self.period, 'Period')
+        if period:
+            rows.append({'kind': 'line_note', 'no': '', 'desc': f'Period : {period}'})
+        if self.move_type == 'out_refund':
+            raw_ref = (self.ref or '').strip()
+            if raw_ref.lower().startswith('reversal of:'):
+                # Format from account.move.reversal wizard is "Reversal of: <name>, <reason>"
+                after_colon = raw_ref.split(':', 1)[1].strip()
+                reason = after_colon.split(',', 1)[1].strip() if ',' in after_colon else ''
+                if reason:
+                    rows.append({'kind': 'line_note', 'no': '', 'desc': f'Reason / เหตุผล : {reason}'})
+            elif raw_ref:
+                rows.append({'kind': 'line_note', 'no': '', 'desc': f'Ref / เหตุผล : {raw_ref}'})
+        else:
+            ref = _strip_label_prefix(self.ref, 'PO')
+            if ref:
+                rows.append({'kind': 'line_note', 'no': '', 'desc': f'PO : {ref}'})
+        return self._ent_compute_row_heights(rows)
 
     # ------------------------------------------------------------------
     # Print Flow & Non-Destructive Live Preview Helpers
     # ------------------------------------------------------------------
-    def _get_preview_overrides_for_company(self):
-        self.ensure_one()
-        preview_cfg = self.env.context.get('custom_preview_overrides')
-        if not isinstance(preview_cfg, dict):
-            return None
-        if preview_cfg.get('company_id') != self.company_id.id:
-            return None
-        return preview_cfg
-
     def _preview_has_bank_override(self):
         cfg = self._get_preview_overrides_for_company()
         if not cfg or 'account_number' not in cfg:

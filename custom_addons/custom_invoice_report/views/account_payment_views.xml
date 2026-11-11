@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_payment_form_inherit_thai_billing" model="ir.ui.view">
+        <field name="name">account.payment.form.inherit.thai.billing</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <!-- ส่วนหัวฝั่งซ้าย: PO / Reference และสาขาของบริษัท -->
+            <xpath expr="//group[@name='group1']" position="inside">
+                <field name="po_ref" string="Reference / PO" placeholder="e.g. 3000044025"/>
+                <field name="company_branch_name" string="Company Branch" placeholder="e.g. สำนักงานใหญ่"/>
+            </xpath>
+
+            <!-- ส่วนหัวฝั่งขวา: Project Name และ Period -->
+            <xpath expr="//group[@name='group2']" position="inside">
+                <field name="project_name" placeholder="e.g. Professional Service"/>
+                <field name="period" placeholder="e.g. May26"/>
+            </xpath>
+
+            <!-- แท็บ Thai Billing & Receipt สำหรับตัวเลือกแสดงเลขหน้าและวิธีรับชำระเงิน -->
+            <xpath expr="//notebook[@name='payment_notebook']" position="inside">
+                <page id="thai_billing_receipt_tab" string="Thai Billing &amp; Receipt">
+                    <group>
+                        <group string="Billing Info / ข้อมูลการวางบิล">
+                            <field name="show_page_number"/>
+                        </group>
+                        <group string="Payment Received By / ข้อมูลการรับชำระ">
+                            <field name="payment_method_type" widget="radio"/>
+                            <field name="cheque_no" invisible="payment_method_type != 'cheque'"/>
+                            <field name="cheque_date" invisible="payment_method_type != 'cheque'"/>
+                            <field name="bank_branch" invisible="payment_method_type != 'cheque'"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

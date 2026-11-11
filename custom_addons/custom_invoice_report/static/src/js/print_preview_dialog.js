@@ -12,6 +12,7 @@ import { getReportUrl } from "@web/webclient/actions/reports/utils";
 export const DEFAULT_EDITABLE_REPORT_NAMES = new Set([
     "account.report_invoice_with_payments",
     "account.report_invoice",
+    "account.report_payment_receipt",
 ]);
 
 function buildPdfJsToolbarCss(editable) {

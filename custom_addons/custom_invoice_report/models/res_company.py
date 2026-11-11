@@ -1,4 +1,5 @@
-from odoo import models, fields
+from odoo import fields, models
+
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
@@ -8,5 +9,10 @@ class ResCompany(models.Model):
     street2_en = fields.Char(string="Street 2 (EN)", help="ที่อยู่ภาษาอังกฤษ บรรทัดที่ 2")
     city_en = fields.Char(string="City (EN)", help="แขวง/เขต/จังหวัด ภาษาอังกฤษ")
     zip_en = fields.Char(string="Zip Code (EN)", help="รหัสไปรษณีย์")
+    branch_name = fields.Char(
+        string="Branch",
+        default="สำนักงานใหญ่",
+        help="ชื่อสาขา เช่น สำนักงานใหญ่, สาขาที่ 00001",
+    )
     fax = fields.Char(string="Fax", help="หมายเลขโทรสาร เช่น 0-21634531")
 

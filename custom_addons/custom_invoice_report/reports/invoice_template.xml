@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        One invoice = one .article, holding one full set of pages per document type
-        listed in `doc_types` (keys of ENT_DOCUMENT_TITLES in models/account_move.py),
+        One document = one .article, holding one full set of pages per document type
+        listed in `doc_types` (keys of ENT_DOCUMENT_TITLES in models/entronica_report_mixin.py),
         e.g. ['invoice_original', 'invoice_copy'] prints the original then the copy.
         Each set has its own page numbering and its own totals/signature page.
 
-        Pages are cut by account.move._ent_report_pages(): every page repeats the
+        Pages are cut by entronica.report.mixin._ent_report_pages(): every page repeats the
         company header, title and customer boxes; only the last page of a set carries
-        the totals and the two signature boxes, the others end with "continued".
+        the totals and the signature section, the others end with "continued".
     -->
     <template id="ent_invoice_document">
         <t t-set="partner" t-value="o.partner_id"/>
         <t t-set="commercial" t-value="o.partner_id.commercial_partner_id"/>
         <t t-set="pages" t-value="o._ent_report_pages()"/>
         <t t-set="company_logo" t-value="o._ent_company_logo()"/>
+        <t t-set="totals" t-value="o._ent_totals()"/>
+        <t t-set="curr_code" t-value="o._ent_currency_code()"/>
+        <t t-set="words_text" t-value="o._ent_baht_text()"/>
         <div class="article ent-invoice" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id">
           <t t-foreach="o._ent_document_titles(doc_types)" t-as="doc">
             <t t-set="title_en" t-value="doc['title_en']"/>
@@ -22,7 +25,7 @@
             <t t-foreach="pages" t-as="page">
                 <div t-attf-class="ent-page #{'' if page['is_last'] and doc_last else 'ent-page-break'}">
 
-                    <!-- Company header: data of the company that owns the invoice -->
+                    <!-- Company header: data of the company that owns the document -->
                     <t t-set="company" t-value="o.company_id"/>
                     <table class="ent-company">
                         <tr>
@@ -30,10 +33,11 @@
                                 <div class="ent-logo-box">
                                     <img t-if="company_logo" t-att-src="company_logo['src']" t-att-style="company_logo['style']" t-att-alt="company.name"/>
                                 </div>
+                                <t t-set="company_branch" t-value="o._ent_company_branch()"/>
                                 <div class="ent-company-tax">
                                     เลขประจำตัวผู้เสียภาษี<br/>
-                                    <t t-out="o._ent_tax_id(company.vat)"/><br/>
-                                    <t t-out="o._ent_branch(company.partner_id)"/>
+                                    <t t-out="o._ent_tax_id(company.vat)"/>
+                                    <t t-if="company_branch"><br/><t t-out="company_branch"/></t>
                                 </div>
                             </td>
                             <td class="ent-company-th">
@@ -63,7 +67,7 @@
                     <div class="ent-title">
                         <div class="ent-title-en" t-out="title_en"/>
                         <div class="ent-title-th" t-out="title_th"/>
-                        <div class="ent-pager">หน้า / Page <t t-out="page['number']"/>/<t t-out="page['total']"/></div>
+                        <div t-if="o.show_page_number" class="ent-pager">หน้า / Page <t t-out="page['number']"/>/<t t-out="page['total']"/></div>
                     </div>
 
                     <!-- Customer and document boxes -->
@@ -87,9 +91,10 @@
                                             </tr>
                                             <tr>
                                                 <td class="ent-label">เลขประจำตัวผู้เสียภาษี :</td>
+                                                <t t-set="partner_branch" t-value="o._ent_partner_branch()"/>
                                                 <td>
                                                     <t t-out="o._ent_tax_id(commercial.vat)"/>
-                                                    <span style="margin-left: 3mm;" t-out="o._ent_branch(commercial)"/>
+                                                    <span t-if="partner_branch" style="margin-left: 3mm;" t-out="partner_branch"/>
                                                 </td>
                                             </tr>
                                         </table>
@@ -97,19 +102,33 @@
                                 </td>
                                 <td class="ent-gap"/>
                                 <td>
-                                    <div class="ent-box">
+                                    <div class="ent-box ent-box-doc">
                                         <table>
+                                            <colgroup>
+                                                <col style="width: 33mm;"/>
+                                                <col/>
+                                            </colgroup>
                                             <tr>
                                                 <td class="ent-label">Invoice No. / เลขที่ :</td>
-                                                <td t-out="o.name if o.name != '/' else ''"/>
+                                                <td class="ent-doc-num">
+                                                    <t t-set="doc_num" t-value="o._ent_doc_number()"/>
+                                                    <div t-if="doc_num"
+                                                         t-att-class="o._ent_doc_num_class(doc_num)"
+                                                         t-out="doc_num"/>
+                                                </td>
                                             </tr>
                                             <tr>
                                                 <td class="ent-label">Project Name :</td>
-                                                <td/>
+                                                <td>
+                                                    <t t-set="project_name" t-value="o._ent_project_name()"/>
+                                                    <div t-if="project_name"
+                                                         t-att-class="o._ent_project_name_class(project_name)"
+                                                         t-out="project_name"/>
+                                                </td>
                                             </tr>
                                             <tr>
                                                 <td class="ent-label">Date / วันที่ :</td>
-                                                <td t-out="o._ent_long_date(o.invoice_date)"/>
+                                                <td t-out="o._ent_long_date(o._ent_doc_date())"/>
                                             </tr>
                                         </table>
                                     </div>
@@ -125,7 +144,7 @@
                             <th class="ent-c-desc">รายการ<br/>DESCRIPTION</th>
                             <th class="ent-c-qty">จำนวน<br/>QUANTITY</th>
                             <th class="ent-c-price">ราคาต่อหน่วย<br/>UNIT PRICE</th>
-                            <th class="ent-c-amount">จำนวนเงิน<br/>AMOUNT</th>
+                            <th class="ent-c-amount">จำนวนเงิน<br/>AMOUNT<t t-if="curr_code"> (<t t-out="curr_code"/>)</t></th>
                         </tr>
                     </table>
                     <div class="ent-items" t-attf-style="height: #{page['items_height']}mm;">
@@ -133,71 +152,187 @@
                         <div class="ent-vline" style="left: 51%;"/>
                         <div class="ent-vline" style="left: 61%;"/>
                         <div class="ent-vline" style="left: 80%;"/>
-                        <table>
-                            <t t-foreach="page['rows']" t-as="row">
+                        <t t-foreach="page['rows']" t-as="row">
+                            <table class="ent-item-row">
                                 <tr t-attf-class="ent-row-#{row['kind']}">
                                     <td class="ent-c-no" t-out="row['no']"/>
-                                    <td class="ent-c-desc ent-desc" t-out="row['desc']"/>
+                                    <td class="ent-c-desc ent-desc" t-out="row['desc'] or '\u00a0'"/>
                                     <td class="ent-c-qty" t-out="row.get('qty', '')"/>
                                     <td class="ent-c-price" t-out="row.get('price', '')"/>
                                     <td class="ent-c-amount" t-out="row.get('amount', '')"/>
                                 </tr>
-                            </t>
-                        </table>
+                            </table>
+                        </t>
                     </div>
 
                     <!-- Last page: totals, amount in words and signatures -->
                     <t t-if="page['is_last']">
-                        <!-- note | label | VAT rate | amount (= the 20% AMOUNT column above) -->
-                        <table class="ent-totals">
-                            <colgroup>
-                                <col style="width: 48%;"/>
-                                <col style="width: 26%;"/>
-                                <col style="width: 6%;"/>
-                                <col style="width: 20%;"/>
-                            </colgroup>
-                            <tr>
-                                <td class="ent-note" rowspan="3">
-                                    <div>Payment to be made by cheque payable to "<t t-out="company.name_en or company.name"/>"</div>
-                                    <div>กรุณาสั่งจ่ายเช็คขีดคร่อมในนาม "<t t-out="company.name"/>"</div>
-                                </td>
-                                <td class="ent-tlabel" colspan="2">Total / รวมเป็นเงิน</td>
-                                <td class="ent-tamount" t-out="o._ent_amount(o.amount_untaxed)"/>
-                            </tr>
-                            <tr>
-                                <td class="ent-tlabel">VAT Amount / ภาษีมูลค่าเพิ่ม</td>
-                                <td class="ent-rate" t-out="o._ent_vat_rate()"/>
-                                <td class="ent-tamount" t-out="o._ent_amount(o.amount_tax)"/>
-                            </tr>
-                            <tr>
-                                <td class="ent-tlabel" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น</td>
-                                <td class="ent-tamount ent-grand" t-out="o._ent_amount(o.amount_total)"/>
-                            </tr>
-                        </table>
-                        <div class="ent-words" t-out="o._ent_baht_text()"/>
-                        <table class="ent-signs">
-                            <tr>
-                                <td>
-                                    <div class="ent-sign">
-                                        <div class="ent-sign-body">
-                                            <div class="ent-sign-line">..........................................................</div>
-                                            <div>Invoiced by / ผู้วางบิล</div>
-                                            <div>Date / วันที่ : <t t-out="o._ent_short_date(o.invoice_date)"/></div>
+                        <t t-if="doc['sign_mode'] == 'receipt'">
+                            <t t-set="pay_info" t-value="o._ent_payment_info()"/>
+                            <t t-set="has_wht" t-value="bool(totals.get('wht'))"/>
+                            <table class="ent-receipt-top">
+                                <colgroup>
+                                    <col style="width: 48%;"/>
+                                    <col style="width: 52%;"/>
+                                </colgroup>
+                                <tr>
+                                    <td class="ent-pay-cell">
+                                        <div class="ent-pay-title">Payment Received By / รับชำระโดย:</div>
+                                        <div class="ent-pay-row">
+                                            <span class="ent-pay-opt">
+                                                <span class="ent-chkbox"><t t-if="pay_info['is_cash']">X</t><t t-else="">&#160;</t></span>
+                                                <span class="ent-pay-lbl">Cash/เงินสด</span>
+                                            </span>
+                                            <span class="ent-pay-opt ent-pay-opt-transfer">
+                                                <span class="ent-chkbox"><t t-if="pay_info['is_transfer']">X</t><t t-else="">&#160;</t></span>
+                                                <span class="ent-pay-lbl">Bank Transfer/เงินโอน</span>
+                                            </span>
+                                        </div>
+                                        <div class="ent-pay-row">
+                                            <span class="ent-chkbox"><t t-if="pay_info['is_cheque']">X</t><t t-else="">&#160;</t></span>
+                                            <span class="ent-pay-lbl">Cheque No./เช็ค เลขที่</span>
+                                            <span class="ent-pay-val ent-pay-val-chq" t-out="pay_info['cheque_no'] or '\u00a0'"/>
+                                        </div>
+                                        <div class="ent-pay-row ent-pay-subrow">
+                                            <span class="ent-pay-lbl">Dated/ลงวันที่</span>
+                                            <span class="ent-pay-val ent-pay-val-date" t-out="pay_info['cheque_date'] or '\u00a0'"/>
+                                        </div>
+                                        <div class="ent-pay-row ent-pay-subrow">
+                                            <span class="ent-pay-lbl">Bank ธนาคาร/ Branch สาขา</span>
+                                            <span class="ent-pay-val ent-pay-val-bank" t-out="pay_info['bank_branch'] or '\u00a0'"/>
+                                        </div>
+                                    </td>
+                                    <td class="ent-receipt-totals-cell">
+                                        <table t-attf-class="ent-totals ent-receipt-totals #{'ent-has-wht' if has_wht else ''}">
+                                            <colgroup>
+                                                <col style="width: 50%;"/>
+                                                <col style="width: 11.5385%;"/>
+                                                <col style="width: 38.4615%;"/>
+                                            </colgroup>
+                                            <tr>
+                                                <td class="ent-tlabel" colspan="2">Total / รวมเป็นเงิน</td>
+                                                <td class="ent-tamount" t-out="o._ent_amount(totals['untaxed'])"/>
+                                            </tr>
+                                            <tr>
+                                                <td class="ent-tlabel">VAT Amount / ภาษีมูลค่าเพิ่ม</td>
+                                                <td class="ent-rate" t-out="o._ent_vat_rate()"/>
+                                                <td class="ent-tamount" t-out="o._ent_amount(totals['vat'])"/>
+                                            </tr>
+                                            <t t-if="has_wht">
+                                                <tr>
+                                                    <td class="ent-tlabel" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น</td>
+                                                    <td class="ent-tamount" t-out="o._ent_amount(totals['total'])"/>
+                                                </tr>
+                                                <tr>
+                                                    <td class="ent-tlabel">Less WHT / หักภาษี ณ ที่จ่าย</td>
+                                                    <td class="ent-rate" t-out="o._ent_wht_rate()"/>
+                                                    <td class="ent-tamount" t-out="o._ent_amount(-totals['wht'])"/>
+                                                </tr>
+                                                <tr>
+                                                    <td t-attf-class="ent-tlabel #{'ent-tlabel-compact' if curr_code else ''}" colspan="2">Net Received / ยอดรับเงินสุทธิ<t t-if="curr_code"> (<t t-out="curr_code"/>)</t></td>
+                                                    <td class="ent-tamount ent-grand" t-out="o._ent_amount(totals['net_total'])"/>
+                                                </tr>
+                                            </t>
+                                            <tr t-else="">
+                                                <td t-attf-class="ent-tlabel #{'ent-tlabel-compact' if curr_code else ''}" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น<t t-if="curr_code"> (<t t-out="curr_code"/>)</t></td>
+                                                <td class="ent-tamount ent-grand" t-out="o._ent_amount(totals['total'])"/>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div t-att-class="o._ent_words_class(words_text)">
+                                <div class="ent-words-tbl">
+                                    <div class="ent-words-cell" t-out="words_text"/>
+                                </div>
+                            </div>
+                            <div t-attf-class="ent-receipt-sign-wrap #{'ent-has-wht' if has_wht else ''}">
+                                <div class="ent-receipt-sign">
+                                    <div class="ent-sign-rule"/>
+                                    <div class="ent-sign-role">Collector / ผู้รับเงิน</div>
+                                    <div class="ent-sign-date">
+                                        <span>Date / วันที่ :</span>
+                                        <span class="ent-sign-date-rule"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <!-- note | label | VAT rate | amount (= the 20% AMOUNT column above) -->
+                            <table class="ent-totals">
+                                <colgroup>
+                                    <col style="width: 48%;"/>
+                                    <col style="width: 26%;"/>
+                                    <col style="width: 6%;"/>
+                                    <col style="width: 20%;"/>
+                                </colgroup>
+                                <tr>
+                                    <td class="ent-note" rowspan="3">
+                                        <t t-if="o._ent_is_credit_note()">
+                                            <t t-if="o.reversed_entry_id">
+                                                <div>Credit Note referencing Invoice "<t t-out="o.reversed_entry_id.name"/>" (<t t-out="o._ent_long_date(o.reversed_entry_id.invoice_date)"/>)</div>
+                                                <div>ใบลดหนี้อ้างอิงเอกสารเลขที่ "<t t-out="o.reversed_entry_id.name"/>"</div>
+                                            </t>
+                                        </t>
+                                        <t t-else="">
+                                            <div>Payment to be made by cheque payable to "<t t-out="company.name_en or company.name"/>"</div>
+                                            <div>กรุณาสั่งจ่ายเช็คขีดคร่อมในนาม "<t t-out="company.name"/>"</div>
+                                        </t>
+                                    </td>
+                                    <td class="ent-tlabel" colspan="2">Total / รวมเป็นเงิน</td>
+                                    <td class="ent-tamount" t-out="o._ent_amount(totals['untaxed'])"/>
+                                </tr>
+                                <tr>
+                                    <td class="ent-tlabel">VAT Amount / ภาษีมูลค่าเพิ่ม</td>
+                                    <td class="ent-rate" t-out="o._ent_vat_rate()"/>
+                                    <td class="ent-tamount" t-out="o._ent_amount(totals['vat'])"/>
+                                </tr>
+                                <tr>
+                                    <td t-attf-class="ent-tlabel #{'ent-tlabel-compact' if curr_code else ''}" colspan="2">Grand Total / รวมเป็นเงินทั้งสิ้น<t t-if="curr_code"> (<t t-out="curr_code"/>)</t></td>
+                                    <td class="ent-tamount ent-grand" t-out="o._ent_amount(totals['total'])"/>
+                                </tr>
+                            </table>
+                            <div t-att-class="o._ent_words_class(words_text)">
+                                <div class="ent-words-tbl">
+                                    <div class="ent-words-cell" t-out="words_text"/>
+                                </div>
+                            </div>
+                            <div t-if="doc['sign_mode'] == 'tax_invoice'" class="ent-signs">
+                                <div class="ent-sign ent-sign-single">
+                                    <div class="ent-sign-single-body">
+                                        <div class="ent-sign-rule"/>
+                                        <div class="ent-sign-role">Authorized Signature / ผู้มีอำนาจลงนาม</div>
+                                        <div class="ent-sign-date">
+                                            <span>Date / วันที่ :</span>
+                                            <span class="ent-sign-date-rule"/>
                                         </div>
                                     </div>
-                                </td>
-                                <td class="ent-gap"/>
-                                <td>
-                                    <div class="ent-sign">
-                                        <div class="ent-sign-body">
-                                            <div class="ent-sign-line">..........................................................</div>
-                                            <div>Received by / ผู้รับวางบิล</div>
-                                            <div>Date / วันที่ : ......../......../............</div>
+                                </div>
+                            </div>
+                            <table t-else="" class="ent-signs">
+                                <tr>
+                                    <td>
+                                        <div class="ent-sign">
+                                            <div class="ent-sign-body">
+                                                <div class="ent-sign-line">..........................................................</div>
+                                                <div><t t-if="o._ent_is_credit_note()">Issued by / ผู้ออกใบลดหนี้</t><t t-else="">Invoiced by / ผู้วางบิล</t></div>
+                                                <div>Date / วันที่ : <t t-out="o._ent_short_date(o._ent_doc_date())"/></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
+                                    </td>
+                                    <td class="ent-gap"/>
+                                    <td>
+                                        <div class="ent-sign">
+                                            <div class="ent-sign-body">
+                                                <div class="ent-sign-line">..........................................................</div>
+                                                <div><t t-if="o._ent_is_credit_note()">Received by / ผู้รับใบลดหนี้</t><t t-else="">Received by / ผู้รับวางบิล</t></div>
+                                                <div>Date / วันที่ : ......../......../............</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </t>
                     </t>
                     <div t-else="" class="ent-continued">
                         มีต่อหน้าถัดไป / Continued on next page ...
@@ -231,6 +366,60 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-set="doc_types" t-value="['invoice_original', 'invoice_copy']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_tax_invoice_original">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['tax_invoice_original']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_tax_invoice_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['tax_invoice_copy']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_tax_invoice_original_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['tax_invoice_original', 'tax_invoice_copy']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_receipt_original">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['receipt_original']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_receipt_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['receipt_copy']"/>
+                <t t-call="custom_invoice_report.ent_invoice_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_receipt_original_copy">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="doc_types" t-value="['receipt_original', 'receipt_copy']"/>
                 <t t-call="custom_invoice_report.ent_invoice_document"/>
             </t>
         </t>

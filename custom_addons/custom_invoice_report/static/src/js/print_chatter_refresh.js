@@ -124,7 +124,10 @@ async function pdfPreviewReportHandler(action, _options, { services }) {
     let layoutState = { can_customize: false };
     ui.block();
     try {
-        const isInvoicePreview = !hasData && targetModel === "account.move" && activeIds.length > 0;
+        const isInvoicePreview =
+            !hasData &&
+            ["account.move", "account.payment"].includes(targetModel) &&
+            activeIds.length > 0;
         const availableReportsPromise = isInvoicePreview
             ? rpc("/report/preview_available_reports", {
                   model: targetModel,
@@ -223,7 +226,57 @@ patch(ActionPlugin.prototype, {
 export const printAuditLogSyncService = {
     dependencies: ["action", "bus_service", "mail.store"],
     start(env, { action, bus_service, "mail.store": mailStore }) {
-        const lastReloadAt = new Map();
+        const inFlightKeys = new Set();
+        const pendingKeys = new Map();
+        const retryTimers = new Map();
+        const retryCounts = new Map();
+
+        const scheduleRetry = (model, numId, key, delayMs = 150) => {
+            if (retryTimers.has(key)) {
+                return;
+            }
+            const tries = (retryCounts.get(key) || 0) + 1;
+            if (tries > 20) {
+                retryCounts.delete(key);
+                pendingKeys.delete(key);
+                return;
+            }
+            retryCounts.set(key, tries);
+            const tid = browser.setTimeout(() => {
+                retryTimers.delete(key);
+                void runReload(model, numId, key);
+            }, delayMs);
+            retryTimers.set(key, tid);
+        };
+
+        const runReload = async (model, numId, key) => {
+            if (inFlightKeys.has(key)) {
+                pendingKeys.set(key, { model, id: numId });
+                return;
+            }
+            const thread = mailStore["mail.thread"].get({ model, id: numId });
+            if (thread?.status === "loading") {
+                pendingKeys.set(key, { model, id: numId });
+                scheduleRetry(model, numId, key, 150);
+                return;
+            }
+            retryCounts.delete(key);
+            inFlightKeys.add(key);
+            try {
+                const fetchPromise = thread?.fetchNewMessages
+                    ? thread.fetchNewMessages()
+                    : Promise.resolve();
+                env.bus.trigger("MAIL:RELOAD-THREAD", { model, id: numId });
+                await fetchPromise;
+            } finally {
+                inFlightKeys.delete(key);
+                const next = pendingKeys.get(key);
+                if (next) {
+                    pendingKeys.delete(key);
+                    void runReload(next.model, next.id, key);
+                }
+            }
+        };
 
         const reloadThread = (model, id) => {
             const numId = Number(id);
@@ -231,16 +284,7 @@ export const printAuditLogSyncService = {
                 return;
             }
             const key = `${model}:${numId}`;
-            const now = Date.now();
-            const prev = lastReloadAt.get(key) || 0;
-            if (now - prev < 150) {
-                return;
-            }
-            lastReloadAt.set(key, now);
-
-            env.bus.trigger("MAIL:RELOAD-THREAD", { model, id: numId });
-            const thread = mailStore["mail.thread"].get({ model, id: numId });
-            thread?.fetchNewMessages?.();
+            void runReload(model, numId, key);
         };
 
         reloadThreadCallback = reloadThread;

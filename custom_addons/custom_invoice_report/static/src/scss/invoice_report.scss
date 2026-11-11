@@ -1,5 +1,5 @@
-// Entronica invoice. Heights in mm must stay in sync with the constants at the
-// top of models/account_move.py, which paginates with them.
+// Entronica forms (Invoice, Tax Invoice, Receipt). Heights in mm must stay
+// in sync with the constants at the top of models/entronica_report_mixin.py.
 
 @font-face {
     font-family: 'Sarabun';
@@ -76,6 +76,7 @@ $ent-radius: 3mm;
     // ---- customer / document boxes -------------------------------------
     .ent-parties {
         height: 26mm;
+        > table { table-layout: fixed; }
         > table > tbody > tr > td { vertical-align: top; }
         .ent-gap { width: 3mm; }
     }
@@ -87,8 +88,19 @@ $ent-radius: 3mm;
         overflow: hidden;
         td { padding: 0 0 0.3mm 0; line-height: 1.25; }
         .ent-label { white-space: nowrap; padding-right: 1.5mm; }
+        // Keep long numbers / project names within two lines so Date below never gets clipped
+        .ent-doc-clip { max-height: 2.3em; overflow: hidden; word-wrap: break-word; }
+        .ent-doc-clip.ent-long { font-size: 9pt; line-height: 1.12; max-height: 2.24em; }
+        .ent-project-clip { max-height: 2.3em; overflow: hidden; word-wrap: break-word; }
+        .ent-project-clip.ent-long { font-size: 9pt; line-height: 1.12; max-height: 2.24em; }
     }
     .ent-box-customer { width: 108mm; }
+    .ent-box.ent-box-doc {
+        padding: 1.0mm 2.5mm;
+        > table { table-layout: fixed; }
+        td { padding: 0 0 0.2mm 0; line-height: 1.15; }
+    }
+    .ent-doc-num { word-wrap: break-word; }
 
     // ---- items table ----------------------------------------------------
     // Column widths (shared by header, items and totals): 7 | 44 | 10 | 19 | 20 %
@@ -138,6 +150,7 @@ $ent-radius: 3mm;
         td { height: 6.5mm; vertical-align: middle; }
         .ent-note { font-size: 8.5pt; vertical-align: bottom; padding: 0 2mm 3mm 1mm; line-height: 1.3; word-wrap: break-word; }
         .ent-tlabel { text-align: right; padding-right: 2mm; white-space: nowrap; }
+        .ent-tlabel.ent-tlabel-compact { font-size: 9pt; }
         .ent-rate { border: $ent-border; text-align: center; vertical-align: middle; font-size: 9.5pt; }
         .ent-tamount {
             border-left: $ent-border;
@@ -149,14 +162,37 @@ $ent-radius: 3mm;
         .ent-grand { border-bottom: 0.9mm double #000; font-weight: bold; }
     }
     .ent-words {
+        display: block;
         margin-top: 2mm;
         width: 117mm;
         height: 7mm;
-        line-height: 6.4mm;
         border: $ent-border;
         border-radius: 1.5mm;
-        text-align: center;
         font-weight: bold;
+        overflow: hidden;
+        padding: 0 2mm;
+        box-sizing: border-box;
+        .ent-words-tbl {
+            display: table;
+            width: 100%;
+            height: 6.4mm;
+            table-layout: fixed;
+        }
+        .ent-words-cell {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+            line-height: 1.15;
+            word-wrap: break-word;
+        }
+        &.ent-long .ent-words-cell {
+            font-size: 8.5pt;
+            line-height: 1.06;
+        }
+        &.ent-xlong .ent-words-cell {
+            font-size: 7.5pt;
+            line-height: 1.06;
+        }
     }
     .ent-signs {
         margin-top: 4mm;
@@ -175,6 +211,145 @@ $ent-radius: 3mm;
             text-align: center;
         }
         .ent-sign-line { letter-spacing: 0.4mm; color: #555; margin-bottom: 1mm; }
+    }
+    .ent-sign-single {
+        width: 117mm;
+        .ent-sign-single-body {
+            position: absolute;
+            left: 5mm;
+            right: 5mm;
+            bottom: 3mm;
+        }
+        .ent-sign-rule {
+            width: 82mm;
+            height: 1px;
+            margin: 0 auto 1.2mm auto;
+            border-bottom: $ent-border;
+        }
+        .ent-sign-role {
+            text-align: center;
+            margin-bottom: 1.8mm;
+        }
+        .ent-sign-date {
+            text-align: left;
+        }
+        .ent-sign-date-rule {
+            display: inline-block;
+            width: 68mm;
+            height: 3mm;
+            margin-left: 2mm;
+            vertical-align: bottom;
+            border-bottom: $ent-border;
+        }
+    }
+
+    // ---- receipt bottom block (Payment Received By + Collector) --------
+    .ent-receipt-top {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .ent-pay-cell {
+        padding: 1.5mm 2mm 0 1mm;
+        font-size: 9pt;
+        line-height: 1.25;
+        vertical-align: top;
+    }
+    .ent-pay-title {
+        margin-bottom: 1mm;
+    }
+    .ent-pay-row {
+        height: 5.2mm;
+        line-height: 5.2mm;
+        white-space: nowrap;
+    }
+    .ent-pay-subrow {
+        padding-left: 5.7mm;
+    }
+    .ent-pay-opt {
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .ent-pay-opt-transfer {
+        margin-left: 5mm;
+    }
+    .ent-chkbox {
+        display: inline-block;
+        width: 4.2mm;
+        height: 3.9mm;
+        line-height: 3.7mm;
+        margin-right: 1.5mm;
+        border: $ent-border;
+        text-align: center;
+        font-size: 8.5pt;
+        font-weight: bold;
+        vertical-align: -0.6mm;
+    }
+    .ent-pay-lbl {
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .ent-pay-val {
+        display: inline-block;
+        margin-left: 2mm;
+        height: 4.3mm;
+        line-height: 4.1mm;
+        border-bottom: $ent-border;
+        text-align: center;
+        font-weight: bold;
+        vertical-align: bottom;
+        overflow: hidden;
+    }
+    .ent-pay-val-chq { width: 38mm; }
+    .ent-pay-val-date { width: 49mm; }
+    .ent-pay-val-bank { width: 37mm; }
+    .ent-receipt-totals-cell {
+        padding: 0;
+        vertical-align: top;
+    }
+    .ent-receipt-totals {
+        width: 100%;
+        &.ent-has-wht {
+            height: 29.5mm;
+            td { height: 5.9mm; font-size: 9pt; }
+            .ent-tlabel.ent-tlabel-compact { font-size: 8.5pt; }
+            .ent-rate { font-size: 8.5pt; }
+        }
+    }
+    .ent-receipt-sign-wrap {
+        margin-top: 3mm;
+        text-align: right;
+        &.ent-has-wht {
+            margin-top: 2mm;
+            .ent-receipt-sign { padding-top: 7mm; }
+        }
+    }
+    .ent-receipt-sign {
+        display: inline-block;
+        width: 82mm;
+        padding-top: 11mm;
+        text-align: left;
+        .ent-sign-rule {
+            width: 72mm;
+            height: 1px;
+            margin: 0 auto 1.2mm auto;
+            border-bottom: $ent-border;
+        }
+        .ent-sign-role {
+            text-align: center;
+            margin-bottom: 1.8mm;
+        }
+        .ent-sign-date {
+            text-align: left;
+            padding-left: 5mm;
+        }
+        .ent-sign-date-rule {
+            display: inline-block;
+            width: 48mm;
+            height: 3mm;
+            margin-left: 2mm;
+            vertical-align: bottom;
+            border-bottom: $ent-border;
+        }
     }
 
     // ---- other pages ----------------------------------------------------

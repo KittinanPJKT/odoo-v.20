@@ -5,11 +5,12 @@ from odoo import models
 from odoo.addons.base.models.ir_qweb_fields import nl2br_enclose
 from odoo.tools import BinaryBytes, html2plaintext, html_sanitize
 
-# Odoo standard invoice PDF reports that support Print Preview editing
+# Odoo standard PDF reports that support Print Preview editing
 # (Company layout customizer + PDF.js annotation editor).
 DEFAULT_EDITABLE_REPORT_NAMES = frozenset({
     'account.report_invoice_with_payments',
     'account.report_invoice',
+    'account.report_payment_receipt',
 })
 
 STANDARD_DOCUMENT_LAYOUT_KEYS = frozenset({

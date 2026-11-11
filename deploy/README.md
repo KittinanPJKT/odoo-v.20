@@ -126,7 +126,7 @@ cd /opt/odoo-deploy/main-repo
 
 ### กรณี B: สร้างฐานข้อมูลใหม่บน `test-a` แล้วติดตั้งโมดูล Custom
 ```bash
-./deploy/scripts/deploy.sh test-a install base,web,account,l10n_th,thai_billing_reports,custom_invoice_report,web_home_menu
+./deploy/scripts/deploy.sh test-a install base,web,account,l10n_th,custom_invoice_report,web_home_menu
 ./deploy/scripts/deploy.sh test-a fix-urls
 ```
 
@@ -172,7 +172,7 @@ crontab -e
 
 | งานที่ต้องการทำ | คำสั่ง |
 | :--- | :--- |
-| อัปเดตโค้ด + โมดูลบน `test-a` | `cd /opt/odoo-deploy/worktree-test-a && git pull` <br> `cd /opt/odoo-deploy/main-repo && ./deploy/scripts/deploy.sh test-a update thai_billing_reports` |
+| อัปเดตโค้ด + โมดูลบน `test-a` | `cd /opt/odoo-deploy/worktree-test-a && git pull` <br> `cd /opt/odoo-deploy/main-repo && ./deploy/scripts/deploy.sh test-a update custom_invoice_report` |
 | อัปเดตโค้ด + โมดูลบน `prod` *(หลังผ่าน Demo แล้ว)* | `cd /opt/odoo-deploy/main-repo && git pull` <br> `./deploy/scripts/backup.sh prod` *(Backup ก่อนอัปเดตเสมอ!)* <br> `./deploy/scripts/deploy.sh prod update custom_invoice_report` |
 | ดู Log การทำงานของระบบจริง | `./deploy/scripts/deploy.sh prod logs` |
 | เปิดดูอีเมลที่โดนดักไว้ใน `test-b` / `test-a` | ต่อ SSH Tunnel จากเครื่องตัวเอง: `ssh -L 8026:127.0.0.1:8026 user@server` แล้วเปิด `http://localhost:8026` |

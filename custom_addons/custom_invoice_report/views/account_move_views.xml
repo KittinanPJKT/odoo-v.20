@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="view_move_form_inherit_thai_billing" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.thai.billing</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- แสดง Reference / PO และสาขาบริษัทในคอลัมน์ซ้ายของ Header ใต้ Customer -->
+            <xpath expr="//group[@id='header_left_group']" position="inside">
+                <field name="ref" string="Reference / PO" placeholder="e.g. 3000044025" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+                <field name="company_branch_name" string="Company Branch" placeholder="e.g. สำนักงานใหญ่" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+            </xpath>
+
+            <!-- เพิ่ม Project Name และ Period ในส่วนหัวเอกสารฝั่งขวา -->
+            <xpath expr="//group[@id='header_right_group']" position="inside">
+                <field name="project_name" placeholder="e.g. Professional Service" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+                <field name="period" placeholder="e.g. May26" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')"/>
+            </xpath>
+
+            <!-- แท็บสำหรับตัวเลือกการพิมพ์แบบไทย -->
+            <xpath expr="//notebook" position="inside">
+                <page id="thai_billing_tab" string="Thai Billing" invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt')">
+                    <group>
+                        <group string="Billing Info / ข้อมูลการวางบิล">
+                            <field name="show_page_number"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_move_form_hide_preview" model="ir.ui.view">
         <field name="name">account.move.form.hide.preview</field>
         <field name="model">account.move</field>

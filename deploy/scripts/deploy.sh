@@ -28,7 +28,7 @@ Actions:
 
 Examples:
   $0 all up
-  $0 prod update thai_billing_reports,custom_invoice_report
+  $0 prod update custom_invoice_report,web_home_menu
   $0 test-b fix-urls
 EOF
     exit 1
